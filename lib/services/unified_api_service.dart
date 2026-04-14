@@ -1,0 +1,73 @@
+import 'dart:async';
+import 'api_service.dart';
+import 'mock_api_service.dart';
+import '../models/bot.dart';
+import '../models/trade.dart';
+import '../models/create_bot.dart';
+
+class UnifiedApiService {
+  static bool _useMockData = true; // Set to true for mock data, false for real API
+
+  static set useMockData(bool useMock) {
+    _useMockData = useMock;
+  }
+
+  static bool get useMockData => _useMockData;
+
+  static Future<BotsListResponse> getBots({
+    String status = 'all',
+    String sortBy = 'created_at',
+    String sortOrder = 'desc',
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (_useMockData) {
+      return MockApiService.getBots(
+        status: status,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        limit: limit,
+        offset: offset,
+      );
+    } else {
+      return ApiService.getBots(
+        status: status,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        limit: limit,
+        offset: offset,
+      );
+    }
+  }
+
+  static Future<BotDetailResponse> getBotDetail(
+    int botId, {
+    String tradeStatus = 'all',
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (_useMockData) {
+      return MockApiService.getBotDetail(
+        botId,
+        tradeStatus: tradeStatus,
+        limit: limit,
+        offset: offset,
+      );
+    } else {
+      return ApiService.getBotDetail(
+        botId,
+        tradeStatus: tradeStatus,
+        limit: limit,
+        offset: offset,
+      );
+    }
+  }
+
+  static Future<CreateBotResponse> createBot(CreateBotRequest request) async {
+    if (_useMockData) {
+      return MockApiService.createBot(request);
+    } else {
+      return ApiService.createBot(request);
+    }
+  }
+}
