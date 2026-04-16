@@ -2,16 +2,20 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/bot.dart';
 import '../models/trade.dart';
+import '../models/trade_new.dart';
 import '../models/create_bot.dart';
+import 'auth_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8080';
+  static const String baseUrl = 'https://futures.eazybot.com';
   static const Duration timeout = Duration(seconds: 30);
 
   static Future<Map<String, String>> get _headers async {
+    final token = await AuthService.getToken();
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 
@@ -19,69 +23,72 @@ class ApiService {
     String status = 'all',
     String sortBy = 'created_at',
     String sortOrder = 'desc',
-    int limit = 20,
+    int limit = 10,
     int offset = 0,
   }) async {
     try {
       final headers = await _headers;
       final queryParams = {
         'status': status,
-        'sort_by': sortBy,
-        'sort_order': sortOrder,
         'limit': limit.toString(),
         'offset': offset.toString(),
       };
 
       final uri = Uri.parse('$baseUrl/api/bots').replace(queryParameters: queryParams);
       
+      print('API DEBUG: Request URL: $uri');
+      print('API DEBUG: Headers: $headers');
+      
       final response = await http.get(uri, headers: headers).timeout(timeout);
+      
+      print('API DEBUG: Response status: ${response.statusCode}');
+      print('API DEBUG: Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
+        print('API DEBUG: Parsed JSON data: $data');
         return BotsListResponse.fromJson(data);
+      } else if (response.statusCode == 401 || response.statusCode == 500) {
+        // Handle authentication and server errors
+        final body = json.decode(response.body);
+        if (body['message'] == 'Unauthenticated' || response.statusCode == 401) {
+          print('API ERROR: Authentication failed, clearing token');
+          await AuthService.logout();
+          throw Exception('Session expired. Please login again.');
+        }
+        // Handle specific server error with 'all' parameter
+        if (body['message'] == 'Unsupported operand types: float - array') {
+          print('API ERROR: Server error with status=all, retrying with status=running');
+          // Retry with 'running' status instead
+          final retryParams = <String, dynamic>{};
+          queryParams.forEach((key, value) {
+            retryParams[key] = key == 'status' ? 'running' : value;
+          });
+          final retryUri = Uri.parse('$baseUrl/api/bots').replace(queryParameters: retryParams);
+          final retryResponse = await http.get(retryUri, headers: headers).timeout(timeout);
+          if (retryResponse.statusCode == 200) {
+            final retryData = json.decode(retryResponse.body) as Map<String, dynamic>;
+            return BotsListResponse.fromJson(retryData);
+          }
+        }
+        print('API ERROR: Status code ${response.statusCode}');
+        throw _handleError(response);
       } else {
+        print('API ERROR: Status code ${response.statusCode}');
         throw _handleError(response);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('API ERROR: Exception in getBots: $e');
+      print('API ERROR: Stack trace: $stackTrace');
       throw _handleException(e);
     }
   }
 
-  static Future<BotDetailResponse> getBotDetail(
-    int botId, {
-    String tradeStatus = 'all',
-    int limit = 20,
-    int offset = 0,
-  }) async {
-    try {
-      final headers = await _headers;
-      final queryParams = {
-        'trade_status': tradeStatus,
-        'limit': limit.toString(),
-        'offset': offset.toString(),
-      };
-
-      final uri = Uri.parse('$baseUrl/api/bots/$botId').replace(queryParameters: queryParams);
-      
-      final response = await http.get(uri, headers: headers).timeout(timeout);
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        return BotDetailResponse.fromJson(data);
-      } else if (response.statusCode == 404) {
-        throw Exception('Bot with ID $botId not found or does not belong to this account.');
-      } else {
-        throw _handleError(response);
-      }
-    } catch (e) {
-      throw _handleException(e);
-    }
-  }
-
+  
   static Future<CreateBotResponse> createBot(CreateBotRequest request) async {
     try {
       final headers = await _headers;
-      final uri = Uri.parse('$baseUrl/api/bots');
+      final uri = Uri.parse('$baseUrl/api/create-bot');
       
       final response = await http.post(
         uri,
@@ -115,6 +122,71 @@ class ApiService {
     }
   }
 
+  static Future<BotDetailResponse> getBotDetail(
+    int botId, {
+    String tradeStatus = 'all',
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final headers = await _headers;
+      final queryParams = {
+        'trade_status': tradeStatus,
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      };
+
+      final uri = Uri.parse('$baseUrl/api/bots/$botId').replace(queryParameters: queryParams);
+      
+      print('API DEBUG: Bot Detail Request URL: $uri');
+      print('API DEBUG: Headers: $headers');
+      
+      final response = await http.get(uri, headers: headers).timeout(timeout);
+      
+      print('API DEBUG: Bot Detail Response status: ${response.statusCode}');
+      print('API DEBUG: Bot Detail Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        print('API DEBUG: Parsed Bot Detail JSON data: $data');
+        return BotDetailResponse.fromJson(data);
+      } else if (response.statusCode == 404) {
+        throw Exception('Bot with ID $botId not found or does not belong to this account.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      throw _handleException(e);
+    }
+  }
+
+  static Future<TradesResponse> getTrades({
+    int page = 1,
+  }) async {
+    try {
+      final headers = await _headers;
+      final uri = Uri.parse('https://futures.eazybot.com/api/trades?page=$page');
+      
+      print('API DEBUG: Trades Request URL: $uri');
+      print('API DEBUG: Headers: $headers');
+      
+      final response = await http.get(uri, headers: headers).timeout(timeout);
+      
+      print('API DEBUG: Trades Response status: ${response.statusCode}');
+      print('API DEBUG: Trades Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        print('API DEBUG: Parsed Trades JSON data: $data');
+        return TradesResponse.fromJson(data);
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      throw _handleException(e);
+    }
+  }
+
   static Exception _handleException(dynamic exception) {
     if (exception is Exception) {
       return exception;
@@ -141,24 +213,24 @@ class BotsListResponse {
 }
 
 class Meta {
-  final int total;
-  final int limit;
-  final int offset;
-  final bool hasMore;
+  final int? total;
+  final int? limit;
+  final int? offset;
+  final bool? hasMore;
 
   Meta({
-    required this.total,
-    required this.limit,
-    required this.offset,
-    required this.hasMore,
+    this.total,
+    this.limit,
+    this.offset,
+    this.hasMore,
   });
 
   factory Meta.fromJson(Map<String, dynamic> json) {
     return Meta(
-      total: json['total'] as int,
-      limit: json['limit'] as int,
-      offset: json['offset'] as int,
-      hasMore: json['has_more'] as bool,
+      total: json['total'] as int? ?? 0,
+      limit: json['limit'] as int? ?? 0,
+      offset: json['offset'] as int? ?? 0,
+      hasMore: json['has_more'] as bool? ?? false,
     );
   }
 }

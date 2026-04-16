@@ -3,10 +3,11 @@ import 'api_service.dart';
 import 'mock_api_service.dart';
 import '../models/bot.dart';
 import '../models/trade.dart';
+import '../models/trade_new.dart';
 import '../models/create_bot.dart';
 
 class UnifiedApiService {
-  static bool _useMockData = true; // Set to true for mock data, false for real API
+  static bool _useMockData = false; // Set to true for mock data, false for real API
 
   static set useMockData(bool useMock) {
     _useMockData = useMock;
@@ -68,6 +69,16 @@ class UnifiedApiService {
       return MockApiService.createBot(request);
     } else {
       return ApiService.createBot(request);
+    }
+  }
+
+  static Future<TradesResponse> getTrades({
+    int page = 1,
+  }) async {
+    if (_useMockData) {
+      return MockApiService.getTrades(page: page);
+    } else {
+      return ApiService.getTrades(page: page);
     }
   }
 }

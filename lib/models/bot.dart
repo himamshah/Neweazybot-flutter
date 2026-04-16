@@ -1,3 +1,5 @@
+import 'create_bot.dart';
+
 class PnL {
   final double realized;
   final double unrealized;
@@ -10,11 +12,25 @@ class PnL {
   });
 
   factory PnL.fromJson(Map<String, dynamic> json) {
-    return PnL(
-      realized: (json['realized'] as num).toDouble(),
-      unrealized: (json['unrealized'] as num).toDouble(),
-      net: (json['net'] as num).toDouble(),
-    );
+    try {
+      print('BOT DEBUG: Parsing PnL data: $json');
+      return PnL(
+        realized: _parseDouble(json['realized'], 'realized'),
+        unrealized: _parseDouble(json['unrealized'], 'unrealized'),
+        net: _parseDouble(json['net'], 'net'),
+      );
+    } catch (e) {
+      print('BOT ERROR: Failed to parse PnL: $e');
+      rethrow;
+    }
+  }
+
+  static double _parseDouble(dynamic value, String fieldName) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    print('BOT WARNING: $fieldName is not a number: $value (${value.runtimeType})');
+    return 0.0;
   }
 }
 
@@ -34,13 +50,19 @@ class Price {
   });
 
   factory Price.fromJson(Map<String, dynamic> json) {
-    return Price(
-      market: (json['market'] as num).toDouble(),
-      avgEntry: json['avg_entry'] != null ? (json['avg_entry'] as num).toDouble() : null,
-      avgEntryDistancePct: json['avg_entry_distance_pct'] != null ? (json['avg_entry_distance_pct'] as num).toDouble() : null,
-      liquidation: json['liquidation'] != null ? (json['liquidation'] as num).toDouble() : null,
-      liquidationDistancePct: json['liquidation_distance_pct'] != null ? (json['liquidation_distance_pct'] as num).toDouble() : null,
-    );
+    try {
+      print('BOT DEBUG: Parsing Price data: $json');
+      return Price(
+        market: PnL._parseDouble(json['market'], 'market'),
+        avgEntry: json['avg_entry'] != null ? PnL._parseDouble(json['avg_entry'], 'avg_entry') : null,
+        avgEntryDistancePct: json['avg_entry_distance_pct'] != null ? PnL._parseDouble(json['avg_entry_distance_pct'], 'avg_entry_distance_pct') : null,
+        liquidation: json['liquidation'] != null ? PnL._parseDouble(json['liquidation'], 'liquidation') : null,
+        liquidationDistancePct: json['liquidation_distance_pct'] != null ? PnL._parseDouble(json['liquidation_distance_pct'], 'liquidation_distance_pct') : null,
+      );
+    } catch (e) {
+      print('BOT ERROR: Failed to parse Price: $e');
+      rethrow;
+    }
   }
 }
 
@@ -84,51 +106,75 @@ class Covers {
   });
 
   factory Covers.fromJson(Map<String, dynamic> json) {
-    return Covers(
-      total: json['total'] as int,
-      activeCoverId: json['active_cover_id'] as int?,
-      nextCover: json['next_cover'] != null ? NextCover.fromJson(json['next_cover']) : null,
-      lastCover: json['last_cover'] != null ? LastCover.fromJson(json['last_cover']) : null,
-    );
+    try {
+      return Covers(
+        total: json['total'] as int? ?? 0,
+        activeCoverId: json['active_cover_id'] as int?,
+        nextCover: json['next_cover'] != null && json['next_cover'] is Map ? NextCover.fromJson(json['next_cover']) : null,
+        lastCover: json['last_cover'] != null && json['last_cover'] is Map ? LastCover.fromJson(json['last_cover']) : null,
+      );
+    } catch (e) {
+      print('BOT ERROR: Failed to parse Covers: $e');
+      print('BOT ERROR: Covers JSON: $json');
+      rethrow;
+    }
   }
 }
 
 class NextCover {
-  final int coverId;
-  final double triggerPrice;
-  final double estimatedAmount;
+  final int? buyCoverId;
+  final int? sellCoverId;
+  final String? buyCoverDetail;
+  final String? sellCoverDetail;
+  final double? triggerPrice;
+  final double? estimatedAmount;
 
   NextCover({
-    required this.coverId,
-    required this.triggerPrice,
-    required this.estimatedAmount,
+    this.buyCoverId,
+    this.sellCoverId,
+    this.buyCoverDetail,
+    this.sellCoverDetail,
+    this.triggerPrice,
+    this.estimatedAmount,
   });
 
   factory NextCover.fromJson(Map<String, dynamic> json) {
     return NextCover(
-      coverId: json['cover_id'] as int,
-      triggerPrice: (json['trigger_price'] as num).toDouble(),
-      estimatedAmount: (json['estimated_amount'] as num).toDouble(),
+      buyCoverId: json['buy_cover_id'] as int?,
+      sellCoverId: json['sell_cover_id'] as int?,
+      buyCoverDetail: json['buy_cover_detail'] as String?,
+      sellCoverDetail: json['sell_cover_detail'] as String?,
+      triggerPrice: json['trigger_price'] != null ? (json['trigger_price'] as num).toDouble() : null,
+      estimatedAmount: json['estimated_amount'] != null ? (json['estimated_amount'] as num).toDouble() : null,
     );
   }
 }
 
 class LastCover {
-  final int coverId;
-  final DateTime filledAt;
-  final double fillPrice;
+  final int? buyCoverId;
+  final int? sellCoverId;
+  final String? buyCoverDetail;
+  final String? sellCoverDetail;
+  final double? triggerPrice;
+  final double? estimatedAmount;
 
   LastCover({
-    required this.coverId,
-    required this.filledAt,
-    required this.fillPrice,
+    this.buyCoverId,
+    this.sellCoverId,
+    this.buyCoverDetail,
+    this.sellCoverDetail,
+    this.triggerPrice,
+    this.estimatedAmount,
   });
 
   factory LastCover.fromJson(Map<String, dynamic> json) {
     return LastCover(
-      coverId: json['cover_id'] as int,
-      filledAt: DateTime.parse(json['filled_at'] as String),
-      fillPrice: (json['fill_price'] as num).toDouble(),
+      buyCoverId: json['buy_cover_id'] as int?,
+      sellCoverId: json['sell_cover_id'] as int?,
+      buyCoverDetail: json['buy_cover_detail'] as String?,
+      sellCoverDetail: json['sell_cover_detail'] as String?,
+      triggerPrice: json['trigger_price'] != null ? (json['trigger_price'] as num).toDouble() : null,
+      estimatedAmount: json['estimated_amount'] != null ? (json['estimated_amount'] as num).toDouble() : null,
     );
   }
 }
@@ -144,6 +190,9 @@ class Bot {
   final Price price;
   final Capital capital;
   final Covers covers;
+  final BotDetails? botDetails;
+  final Configuration? configuration;
+  final Risk? risk;
 
   Bot({
     required this.id,
@@ -156,21 +205,34 @@ class Bot {
     required this.price,
     required this.capital,
     required this.covers,
+    this.botDetails,
+    this.configuration,
+    this.risk,
   });
 
   factory Bot.fromJson(Map<String, dynamic> json) {
-    return Bot(
-      id: json['id'] as int,
-      coin: json['coin'] as String,
-      exchange: json['exchange'] as String,
-      direction: json['direction'] as String,
-      status: json['status'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      pnl: PnL.fromJson(json['pnl']),
-      price: Price.fromJson(json['price']),
-      capital: Capital.fromJson(json['capital']),
-      covers: Covers.fromJson(json['covers']),
-    );
+    try {
+      print('BOT DEBUG: Parsing Bot JSON: $json');
+      return Bot(
+        id: json['id'] as int,
+        coin: json['coin'] as String,
+        exchange: json['exchange'] as String,
+        direction: json['direction'] as String,
+        status: json['status'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        pnl: PnL.fromJson(json['pnl']),
+        price: Price.fromJson(json['price']),
+        capital: Capital.fromJson(json['capital']),
+        covers: json['covers'] != null ? Covers.fromJson(json['covers']) : Covers(total: 0),
+        botDetails: json['bot_details'] != null ? BotDetails.fromJson(json['bot_details']) : null,
+        configuration: json['configuration'] != null ? Configuration.fromJson(json['configuration']) : null,
+        risk: json['risk'] != null ? Risk.fromJson(json['risk']) : null,
+      );
+    } catch (e) {
+      print('BOT ERROR: Failed to parse Bot: $e');
+      print('BOT ERROR: Bot JSON: $json');
+      rethrow;
+    }
   }
 
   String get coinSymbol {
@@ -181,3 +243,65 @@ class Bot {
     return coin;
   }
 }
+
+class BotDetails {
+  final double assignedCapital;
+  final double initialSizePct;
+
+  BotDetails({
+    required this.assignedCapital,
+    required this.initialSizePct,
+  });
+
+  factory BotDetails.fromJson(Map<String, dynamic> json) {
+    return BotDetails(
+      assignedCapital: (json['assigned_capital'] as num).toDouble(),
+      initialSizePct: (json['initial_size_pct'] as num).toDouble(),
+    );
+  }
+}
+
+class Configuration {
+  final String? direction;
+  final double? triggerPrice;
+  final double? takeProfitPct;
+  final bool? cycleContinuous;
+  final bool? autoCompounding;
+
+  Configuration({
+    this.direction,
+    this.triggerPrice,
+    this.takeProfitPct,
+    this.cycleContinuous,
+    this.autoCompounding,
+  });
+
+  factory Configuration.fromJson(Map<String, dynamic> json) {
+    return Configuration(
+      direction: json['direction'] as String?,
+      triggerPrice: json['trigger_price'] != null ? (json['trigger_price'] as num).toDouble() : null,
+      takeProfitPct: json['take_profit_pct'] != null ? (json['take_profit_pct'] as num).toDouble() : null,
+      cycleContinuous: json['cycle_continuous'] as bool?,
+      autoCompounding: json['auto_compounding'] as bool?,
+    );
+  }
+}
+
+class Risk {
+  final double? netProfitPct;
+  final double? stopLossPct;
+
+  Risk({
+    this.netProfitPct,
+    this.stopLossPct,
+  });
+
+  factory Risk.fromJson(Map<String, dynamic> json) {
+    return Risk(
+      netProfitPct: json['net_profit_pct'] != null ? (json['net_profit_pct'] as num).toDouble() : null,
+      stopLossPct: json['stop_loss_pct'] != null ? (json['stop_loss_pct'] as num).toDouble() : null,
+    );
+  }
+}
+
+

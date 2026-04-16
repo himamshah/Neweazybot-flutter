@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/bot.dart';
 import '../services/unified_api_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/bot_card.dart';
 import '../utils/app_theme.dart';
 import 'create_bot_screen.dart';
-import 'bot_trades_screen.dart';
+import 'bot_details_screen.dart';
+import 'login_screen.dart';
 
 class BotsListScreen extends StatefulWidget {
   const BotsListScreen({Key? key}) : super(key: key);
@@ -16,37 +18,103 @@ class BotsListScreen extends StatefulWidget {
 class _BotsListScreenState extends State<BotsListScreen> {
   List<Bot> bots = [];
   bool isLoading = false;
+  bool isLoadingMore = false;
   String error = '';
   String selectedFilter = 'all';
+  String userName = '';
+  
+  // Pagination variables
+  int currentPage = 0;
+  int totalCount = 0;
+  bool hasMore = false;
+  final int pageSize = 20;
 
   @override
   void initState() {
     super.initState();
+    _loadUserInfo();
     _loadBots();
   }
 
-  Future<void> _loadBots() async {
-    setState(() {
-      isLoading = true;
-      error = '';
-    });
+  Future<void> _loadUserInfo() async {
+    final user = await AuthService.getCurrentUser();
+    if (user != null) {
+      setState(() {
+        userName = user.name;
+      });
+    }
+  }
+
+  Future<void> _loadBots({bool isLoadMore = false}) async {
+    if (isLoadMore) {
+      setState(() {
+        isLoadingMore = true;
+      });
+    } else {
+      setState(() {
+        isLoading = true;
+        error = '';
+        currentPage = 0;
+        bots.clear();
+      });
+    }
 
     try {
+      print('DEBUG: Starting to load bots with filter: $selectedFilter');
+      print('DEBUG: Using mock data: ${UnifiedApiService.useMockData}');
+      print('DEBUG: Page: $currentPage, Offset: ${currentPage * pageSize}, Limit: $pageSize');
+      
       final response = await UnifiedApiService.getBots(
         status: selectedFilter,
         sortBy: 'created_at',
         sortOrder: 'desc',
+        limit: pageSize,
+        offset: currentPage * pageSize,
       );
       
+      print('DEBUG: Successfully loaded ${response.bots.length} bots');
+      print('DEBUG: Total bots: ${response.meta.total}, Has more: ${response.meta.hasMore}');
+      
       setState(() {
-        bots = response.bots;
+        if (isLoadMore) {
+          bots.addAll(response.bots);
+        } else {
+          bots = response.bots;
+        }
+        totalCount = response.meta.total ?? 0;
+        hasMore = response.meta.hasMore ?? false;
         isLoading = false;
+        isLoadingMore = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('ERROR: Failed to load bots: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      print('ERROR: Error type: ${e.runtimeType}');
+      
+      // Handle authentication errors
+      if (e.toString().contains('Session expired') || e.toString().contains('Unauthenticated')) {
+        print('ERROR: Authentication error, redirecting to login');
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+        return;
+      }
+      
       setState(() {
-        error = e.toString();
+        error = 'Failed to load bots: ${e.toString()}';
         isLoading = false;
+        isLoadingMore = false;
       });
+    }
+  }
+
+  Future<void> _loadMoreBots() async {
+    if (!isLoadingMore && hasMore) {
+      currentPage++;
+      await _loadBots(isLoadMore: true);
     }
   }
 
@@ -91,11 +159,43 @@ class _BotsListScreenState extends State<BotsListScreen> {
           const Spacer(),
           Row(
             children: [
+              if (userName.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bg3,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.person_outline,
+                        size: 16,
+                        color: AppTheme.text2,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        userName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.text2,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(width: 8),
               _buildApiToggle(),
               const SizedBox(width: 8),
               _buildNavButton(Icons.search_outlined, false),
               const SizedBox(width: 8),
               _buildNavButton(Icons.add, true),
+              const SizedBox(width: 8),
+              _buildNavButton(Icons.refresh_outlined, false, _clearTokenAndReload),
+              const SizedBox(width: 8),
+              _buildNavButton(Icons.logout_outlined, false, _handleLogout),
             ],
           ),
         ],
@@ -127,7 +227,7 @@ class _BotsListScreenState extends State<BotsListScreen> {
     );
   }
 
-  Widget _buildNavButton(IconData icon, bool isPrimary) {
+  Widget _buildNavButton(IconData icon, bool isPrimary, [VoidCallback? onPressed]) {
     return Container(
       width: 34,
       height: 34,
@@ -138,18 +238,37 @@ class _BotsListScreenState extends State<BotsListScreen> {
       ),
       child: IconButton(
         icon: Icon(icon, size: 14),
-        onPressed: isPrimary ? _navigateToCreateBot : null,
+        onPressed: onPressed ?? (isPrimary ? _navigateToCreateBot : null),
         padding: EdgeInsets.zero,
         color: isPrimary ? Colors.white : AppTheme.text2,
       ),
     );
   }
 
+  Future<void> _handleLogout() async {
+    await AuthService.logout();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  Future<void> _clearTokenAndReload() async {
+    await AuthService.clearAllData();
+    setState(() {
+      error = 'All data cleared. Please login again with fresh credentials.';
+      bots = [];
+    });
+  }
+
   Widget _buildFilterBar() {
     final filters = [
       {'label': 'All', 'value': 'all'},
       {'label': 'Running', 'value': 'running'},
-      {'label': 'Stopped', 'value': 'stopped'},
+      {'label': 'Paused', 'value': 'paused'},
+      {'label': 'Closed', 'value': 'closed'},
     ];
 
     return Container(
@@ -163,14 +282,23 @@ class _BotsListScreenState extends State<BotsListScreen> {
         child: Row(
           children: filters.map((filter) {
             final isActive = selectedFilter == filter['value'];
-            final count = bots.where((bot) => 
-              filter['value'] == 'all' || bot.status == filter['value']
-            ).length;
+            final count = bots.where((bot) {
+              if (filter['value'] == 'all') return true;
+              final botStatus = bot.status.toLowerCase();
+              final filterStatus = filter['value']!.toLowerCase();
+              return botStatus == filterStatus;
+            }).length;
+            
+            // Show total count for "All" filter, current count for others
+            final displayCount = filter['value'] == 'all' ? totalCount : count;
+            
+            // Debug logging for counters
+            print('COUNTER DEBUG: Filter ${filter['label']} (${filter['value']}) count: $displayCount (loaded: ${bots.length}, total: $totalCount)');
             
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
-                label: Text('${filter['label']} ($count)'),
+                label: Text('${filter['label']} ($displayCount)'),
                 selected: isActive,
                 onSelected: (selected) {
                   if (selected) {
@@ -278,19 +406,41 @@ class _BotsListScreenState extends State<BotsListScreen> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(14),
-      itemCount: bots.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final bot = bots[index];
-        return BotCard(
-          bot: bot,
-          onViewTrades: () => _navigateToBotTrades(bot),
-          onRestart: bot.status == 'stopped' ? () => _restartBot(bot) : null,
-          onSettings: () => _showBotSettings(bot),
-        );
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent && 
+            !isLoadingMore && 
+            hasMore) {
+          _loadMoreBots();
+        }
+        return false;
       },
+      child: ListView.separated(
+        padding: const EdgeInsets.all(14),
+        itemCount: bots.length + (hasMore ? 1 : 0),
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          if (index == bots.length && hasMore) {
+            // Show loading indicator at the bottom
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(
+                  color: AppTheme.blue,
+                ),
+              ),
+            );
+          }
+          
+          final bot = bots[index];
+          return BotCard(
+            bot: bot,
+            onViewTrades: () => _navigateToBotTrades(bot),
+            onRestart: bot.status == 'stopped' ? () => _restartBot(bot) : null,
+            onSettings: () => _showBotSettings(bot),
+          );
+        },
+      ),
     );
   }
 
@@ -356,7 +506,7 @@ class _BotsListScreenState extends State<BotsListScreen> {
   void _navigateToBotTrades(Bot bot) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => BotTradesScreen(bot: bot),
+        builder: (context) => BotDetailsScreen(bot: bot),
       ),
     );
   }

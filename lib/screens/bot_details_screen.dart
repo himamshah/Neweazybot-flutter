@@ -5,57 +5,110 @@ import '../models/trade.dart';
 import '../services/unified_api_service.dart';
 import '../utils/app_theme.dart';
 
-class BotTradesScreen extends StatefulWidget {
+class BotDetailsScreen extends StatefulWidget {
   final Bot bot;
 
-  const BotTradesScreen({
+  const BotDetailsScreen({
     Key? key,
     required this.bot,
   }) : super(key: key);
 
   @override
-  State<BotTradesScreen> createState() => _BotTradesScreenState();
+  State<BotDetailsScreen> createState() => _BotDetailsScreenState();
 }
 
-class _BotTradesScreenState extends State<BotTradesScreen> {
-  List<Trade> trades = [];
+class _BotDetailsScreenState extends State<BotDetailsScreen> {
   bool isLoading = false;
+  bool isLoadingMore = false;
   String error = '';
   String selectedFilter = 'all';
   final Set<int> expandedTrades = {};
-
+  Bot? botDetail;
+  dynamic tradesMeta;
+  int currentPage = 1;
+  bool hasMore = false;
+  List<Trade> trades = [];
+  
   @override
   void initState() {
     super.initState();
-    _loadTrades();
+    _loadBotDetails();
   }
 
-  Future<void> _loadTrades() async {
-    setState(() {
-      isLoading = true;
-      error = '';
-    });
+  Future<void> _loadBotDetails({bool isLoadMore = false}) async {
+    print('DEBUG: _loadBotDetails called for bot ${widget.bot.id}');
+    if (isLoadMore) {
+      setState(() {
+        isLoadingMore = true;
+      });
+    } else {
+      setState(() {
+        isLoading = true;
+        error = '';
+        currentPage = 1;
+        trades.clear();
+      });
+    }
 
     try {
       final response = await UnifiedApiService.getBotDetail(
         widget.bot.id,
         tradeStatus: selectedFilter,
+        limit: 20,
+        offset: (currentPage - 1) * 20,
       );
       
       setState(() {
-        trades = response.trades;
+        botDetail = response.bot;
+        tradesMeta = response.tradesMeta;
+        
+        print('DEBUG: Bot ID: ${widget.bot.id}');
+        print('DEBUG: Trades count: ${response.trades.length}');
+        print('DEBUG: Trades data: ${response.trades}');
+        
+        for (int i = 0; i < response.trades.length; i++) {
+          final trade = response.trades[i];
+          print('DEBUG: Trade $i - group_id: ${trade.groupId}');
+          print('DEBUG: Trade $i - status: ${trade.status}');
+          print('DEBUG: Trade $i - open_trade: ${trade.openTrade}');
+          print('DEBUG: Trade $i - close_trade: ${trade.closeTrade}');
+          if (trade.openTrade != null) {
+            print('DEBUG: Trade $i - open_trade status: ${trade.openTrade!.fillStatus}');
+          }
+          if (trade.closeTrade != null) {
+            print('DEBUG: Trade $i - close_trade status: ${trade.closeTrade!.fillStatus}');
+          }
+        }
+        
+        if (isLoadMore) {
+          trades.addAll(response.trades);
+        } else {
+          trades = response.trades;
+        }
+        
+        hasMore = response.tradesMeta.hasMore;
         isLoading = false;
+        isLoadingMore = false;
       });
     } catch (e) {
       setState(() {
         error = e.toString();
         isLoading = false;
+        isLoadingMore = false;
       });
+    }
+  }
+
+  Future<void> _loadMoreTrades() async {
+    if (!isLoadingMore && hasMore) {
+      currentPage++;
+      await _loadBotDetails(isLoadMore: true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    print('DEBUG: build() called for bot ${widget.bot.id}');
     return Scaffold(
       backgroundColor: AppTheme.bg,
       body: SafeArea(
@@ -74,7 +127,6 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
     );
   }
 
-  
   Widget _buildNavBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -139,6 +191,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildSummaryHeader() {
+    final bot = botDetail ?? widget.bot;
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.bg2,
@@ -149,7 +202,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
           _buildHeaderTop(),
           _buildPnLGrid(),
           _buildPriceGrid(),
-          if (widget.bot.status == 'running') _buildLiquidationBar(),
+          if (bot.status == 'running') _buildLiquidationBar(),
           _buildCapitalGrid(),
         ],
       ),
@@ -157,6 +210,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildHeaderTop() {
+    final bot = botDetail ?? widget.bot;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
@@ -173,7 +227,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    widget.bot.coinSymbol,
+                    bot.coinSymbol,
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -187,7 +241,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.bot.coin,
+                    bot.coin,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -195,7 +249,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
                     ),
                   ),
                   Text(
-                    '${widget.bot.exchange} · ${widget.bot.direction} · #${widget.bot.id}',
+                    '${bot.exchange} · ${bot.direction} · #${bot.id}',
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppTheme.text3,
@@ -213,7 +267,8 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildStatusPill() {
-    final isRunning = widget.bot.status == 'running';
+    final bot = botDetail ?? widget.bot;
+    final isRunning = bot.status == 'running';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -246,6 +301,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildPnLGrid() {
+    final bot = botDetail ?? widget.bot;
     return Container(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.border)),
@@ -253,7 +309,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
       child: Row(
         children: [
           Expanded(
-            child: _buildGridCell('Realized PnL', widget.bot.pnl.realized),
+            child: _buildGridCell('Realized PnL', bot.pnl.realized),
           ),
           Container(
             width: 1,
@@ -261,7 +317,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
             color: AppTheme.border,
           ),
           Expanded(
-            child: _buildGridCell('Unrealized', widget.bot.pnl.unrealized),
+            child: _buildGridCell('Unrealized', bot.pnl.unrealized),
           ),
           Container(
             width: 1,
@@ -269,7 +325,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
             color: AppTheme.border,
           ),
           Expanded(
-            child: _buildGridCell('Net PnL', widget.bot.pnl.net),
+            child: _buildGridCell('Net PnL', bot.pnl.net),
           ),
         ],
       ),
@@ -277,6 +333,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildPriceGrid() {
+    final bot = botDetail ?? widget.bot;
     return Container(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.border)),
@@ -286,7 +343,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
           Expanded(
             child: _buildPriceCell(
               'Market price',
-              AppTheme.formatPrice(widget.bot.price.market),
+              AppTheme.formatPrice(bot.price.market),
               Text('live · 2s ago', style: const TextStyle(fontSize: 10, color: AppTheme.text3)),
             ),
           ),
@@ -298,11 +355,11 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
           Expanded(
             child: _buildPriceCell(
               'Avg entry',
-              widget.bot.price.avgEntry != null 
-                  ? AppTheme.formatPrice(widget.bot.price.avgEntry!)
+              bot.price.avgEntry != null 
+                  ? AppTheme.formatPrice(bot.price.avgEntry!)
                   : '---',
-              widget.bot.price.avgEntryDistancePct != null
-                  ? _buildDistanceBadge(widget.bot.price.avgEntryDistancePct!)
+              bot.price.avgEntryDistancePct != null
+                  ? _buildDistanceBadge(bot.price.avgEntryDistancePct!)
                   : Text('no open position', style: const TextStyle(fontSize: 10, color: AppTheme.text3)),
             ),
           ),
@@ -312,6 +369,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildLiquidationBar() {
+    final bot = botDetail ?? widget.bot;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: const BoxDecoration(
@@ -340,7 +398,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
           ),
           const Spacer(),
           Text(
-            '${AppTheme.formatPrice(widget.bot.price.liquidation!)} +${AppTheme.formatPercentage(widget.bot.price.liquidationDistancePct!)} from mkt',
+            '${AppTheme.formatPrice(bot.price.liquidation!)} +${AppTheme.formatPercentage(bot.price.liquidationDistancePct!)} from mkt',
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
@@ -354,6 +412,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildCapitalGrid() {
+    final bot = botDetail ?? widget.bot;
     return Container(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.border)),
@@ -361,7 +420,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
       child: Row(
         children: [
           Expanded(
-            child: _buildCapitalCell('Assigned', widget.bot.capital.assigned, 'total capital'),
+            child: _buildCapitalCell('Assigned', bot.capital.assigned, 'total capital'),
           ),
           Container(
             width: 1,
@@ -369,7 +428,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
             color: AppTheme.border,
           ),
           Expanded(
-            child: _buildCapitalCell('Available', widget.bot.capital.available, '${AppTheme.formatPercentage(widget.bot.capital.availablePct)} free'),
+            child: _buildCapitalCell('Available', bot.capital.available, '${AppTheme.formatPercentage(bot.capital.availablePct)} free'),
           ),
           Container(
             width: 1,
@@ -377,7 +436,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
             color: AppTheme.border,
           ),
           Expanded(
-            child: _buildCapitalCell('In position', widget.bot.capital.inPosition, '+${AppTheme.formatPercentage(widget.bot.capital.growthPct)}'),
+            child: _buildCapitalCell('In position', bot.capital.inPosition, '+${AppTheme.formatPercentage(bot.capital.growthPct)}'),
           ),
         ],
       ),
@@ -530,7 +589,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
                     setState(() {
                       selectedFilter = filterValue;
                     });
-                    _loadTrades();
+                    _loadBotDetails();
                   }
                 },
                 backgroundColor: AppTheme.bg3,
@@ -552,6 +611,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
   }
 
   Widget _buildBody() {
+    print('DEBUG: _buildBody() called, isLoading: $isLoading, trades.length: ${trades.length}');
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -590,7 +650,7 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadTrades,
+              onPressed: _loadBotDetails,
               child: const Text('Retry'),
             ),
           ],
@@ -630,27 +690,25 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
       );
     }
 
-    return ListView.builder(
+    return ListView.separated(
       padding: const EdgeInsets.all(14),
-      itemCount: trades.length,
+      itemCount: trades.length + (hasMore ? 1 : 0),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
+        if (index == trades.length && hasMore) {
+          // Show loading indicator at bottom
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(
+                color: AppTheme.blue,
+              ),
+            ),
+          );
+        }
+        
         final trade = trades[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: TradeCard(
-            trade: trade,
-            isExpanded: expandedTrades.contains(trade.groupId),
-            onToggle: () {
-              setState(() {
-                if (expandedTrades.contains(trade.groupId)) {
-                  expandedTrades.remove(trade.groupId);
-                } else {
-                  expandedTrades.add(trade.groupId);
-                }
-              });
-            },
-          ),
-        );
+        return _buildTradeCard(trade);
       },
     );
   }
@@ -705,130 +763,158 @@ class _BotTradesScreenState extends State<BotTradesScreen> {
       ),
     );
   }
-}
 
-class TradeCard extends StatelessWidget {
-  final Trade trade;
-  final bool isExpanded;
-  final VoidCallback onToggle;
+  Widget _buildTradeCard(Trade trade) {
+    try {
+      print('DEBUG: Building trade card for trade ${trade.groupId}');
+      final isOpen = trade.status == 'open';
+      final isClosed = trade.status == 'closed';
+      final openTrade = trade.openTrade;
+      print('DEBUG: openTrade is null: ${openTrade == null}');
+      print('DEBUG: closeTrade is null: ${trade.closeTrade == null}');
+      final isCancelled = openTrade != null && openTrade.fillStatus == 'CANCELLED';
+      print('DEBUG: isCancelled: $isCancelled');
+    
+    Color borderColor;
+    Color numberColor;
+    Color numberBg;
+    
+    if (isCancelled) {
+      borderColor = AppTheme.text3;
+      numberColor = AppTheme.text3;
+      numberBg = const Color(0x0DFFFFFF);
+    } else if (isOpen) {
+      borderColor = AppTheme.amber;
+      numberColor = AppTheme.amber;
+      numberBg = AppTheme.amberDim;
+    } else {
+      borderColor = AppTheme.green;
+      numberColor = AppTheme.red;
+      numberBg = AppTheme.redDim;
+    }
 
-  const TradeCard({
-    Key? key,
-    required this.trade,
-    required this.isExpanded,
-    required this.onToggle,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = _getStatusColor(trade.status);
-    final statusBgColor = _getStatusBgColor(trade.status);
-
+    final isExpanded = expandedTrades.contains(trade.groupId);
+    
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.bg2,
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(13),
-          bottomRight: Radius.circular(13),
-          bottomLeft: Radius.circular(13),
-        ),
         border: Border(
           top: BorderSide(color: AppTheme.border),
           right: BorderSide(color: AppTheme.border),
           bottom: BorderSide(color: AppTheme.border),
-        ),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(13),
-            bottomLeft: Radius.circular(13),
-          ),
-          border: Border(
-            left: BorderSide(
-              color: statusColor,
-              width: 3,
-            ),
+          left: BorderSide(
+            color: borderColor,
+            width: 3,
           ),
         ),
-        child: Column(
-          children: [
-            _buildTradeHeader(statusColor, statusBgColor),
-            if (trade.status == 'open') _buildProfitTakeSection(),
-            if (trade.closeTrade != null && isExpanded) _buildCloseTradeSection(),
-          ],
-        ),
       ),
-    );
-  }
-
-  Widget _buildTradeHeader(Color statusColor, Color statusBgColor) {
-    return InkWell(
-      onTap: onToggle,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: statusBgColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  trade.coverDisplay,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        children: [
+          // Main trade info
+          InkWell(
+            onTap: () {
+              if (isClosed && trade.closeTrade != null) {
+                setState(() {
+                  if (isExpanded) {
+                    expandedTrades.remove(trade.groupId);
+                  } else {
+                    expandedTrades.add(trade.groupId);
+                  }
+                });
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              child: Row(
                 children: [
-                  Text(
-                    '${trade.coverLabel} · ${trade.openTrade.description}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.text,
+                  // Trade number
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: numberBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        trade.coverLabel == 'Initial order' ? 'INI' : 
+                        trade.coverLabel.replaceAll('Cover ', 'C'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: numberColor,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Row(
+                  const SizedBox(width: 10),
+                  
+                  // Trade details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          openTrade?.description ?? 'Trade',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Text(
+                              DateFormat('HH:mm:ss').format(openTrade?.createdAt ?? DateTime.now()),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppTheme.text3,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: isCancelled ? const Color(0x0DFFFFFF) : AppTheme.greenDim,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                isCancelled ? 'Cancelled' : 'Filled',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: isCancelled ? AppTheme.text3 : AppTheme.green,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Price and quantity
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        DateFormat('HH:mm:ss').format(trade.openTrade.createdAt),
+                        AppTheme.formatPrice(openTrade?.price ?? 0.0),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isCancelled ? AppTheme.text3 : AppTheme.text,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${openTrade?.qty.toString() ?? '0'} qty · ${AppTheme.formatCurrency(openTrade?.amount ?? 0.0)}',
                         style: const TextStyle(
                           fontSize: 10,
                           color: AppTheme.text3,
                           fontFamily: 'monospace',
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: trade.openTrade.fillStatus == 'filled' 
-                              ? AppTheme.greenDim 
-                              : const Color(0x0DFFFFFF),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          trade.openTrade.fillStatus,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: trade.openTrade.fillStatus == 'filled' 
-                                ? AppTheme.green 
-                                : AppTheme.text3,
-                          ),
                         ),
                       ),
                     ],
@@ -836,124 +922,133 @@ class TradeCard extends StatelessWidget {
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+          ),
+          
+          // Profit take section
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: AppTheme.border)),
+              color: AppTheme.bg3,
+            ),
+            child: Row(
               children: [
-                Text(
-                  AppTheme.formatPrice(trade.openTrade.price),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.text,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${trade.openTrade.qty} qty · ${AppTheme.formatCurrency(trade.openTrade.amount)}',
-                  style: const TextStyle(
-                    fontSize: 10,
+                const Text(
+                  'Profit take',
+                  style: TextStyle(
+                    fontSize: 11,
                     color: AppTheme.text3,
-                    fontFamily: 'monospace',
                   ),
                 ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _getProfitTakeText(trade),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: _getProfitTakeColor(trade),
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+                if (isClosed && trade.closeTrade != null)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        if (isExpanded) {
+                          expandedTrades.remove(trade.groupId);
+                        } else {
+                          expandedTrades.add(trade.groupId);
+                        }
+                      });
+                    },
+                    icon: Icon(
+                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 14,
+                      color: AppTheme.blue,
+                    ),
+                    label: const Text(
+                      'Close trade',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.blue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfitTakeSection() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppTheme.border)),
-        color: AppTheme.bg3,
-      ),
-      child: Row(
-        children: [
-          const Text(
-            'Profit take',
-            style: TextStyle(
-              fontSize: 11,
-              color: AppTheme.text3,
-            ),
           ),
-          const SizedBox(width: 6),
-          if (trade.pendingTp != null)
-            Text(
-              'Waiting · TP @ ${AppTheme.formatPrice(trade.pendingTp!.targetPrice)}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.amber,
-                fontFamily: 'monospace',
-              ),
-            )
-          else if (trade.profit != null)
-            Text(
-              '+${AppTheme.formatCurrency(trade.profit!)} · @${AppTheme.formatPercentage(trade.profitPct!)}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.green,
-                fontFamily: 'monospace',
-              ),
-            )
-          else
-            const Text(
-              '---',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.text3,
-                fontFamily: 'monospace',
-              ),
-            ),
-          const Spacer(),
-          if (trade.closeTrade != null)
-            TextButton.icon(
-              onPressed: onToggle,
-              icon: Icon(
-                isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                size: 10,
-                color: AppTheme.blue,
-              ),
-              label: const Text(
-                'Close trade',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppTheme.blue,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
+          
+          // Expanded close trade details
+          if (isExpanded && trade.closeTrade != null)
+            _buildCloseTradeDetails(trade),
         ],
       ),
     );
+    } catch (e, stackTrace) {
+      print('ERROR: Exception in _buildTradeCard for trade ${trade.groupId}: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      print('ERROR: Trade data: $trade');
+      
+      // Return a fallback widget to prevent crashes
+      return Container(
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.bg2,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppTheme.red),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Error displaying trade ${trade.groupId}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.red,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Status: ${trade.status}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.text3,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
-  Widget _buildCloseTradeSection() {
-    if (trade.closeTrade == null) return const SizedBox.shrink();
-
+  Widget _buildCloseTradeDetails(Trade trade) {
+    try {
+      final closeTrade = trade.closeTrade;
+      final holdDuration = trade.holdDurationSeconds;
+      print('DEBUG: Building close trade details for trade ${trade.groupId}');
+      print('DEBUG: closeTrade is null: ${closeTrade == null}');
+      print('DEBUG: closeTrade status: ${closeTrade?.fillStatus}');
+    
     return Container(
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Column(
         children: [
+          // Hold duration and close info
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppTheme.bg3,
-            ),
+            color: AppTheme.bg3,
             child: Row(
               children: [
                 Container(
@@ -963,7 +1058,7 @@ class TradeCard extends StatelessWidget {
                   margin: const EdgeInsets.only(right: 8),
                 ),
                 Text(
-                  'Held ${_formatDuration(trade.holdDuration)}',
+                  'Held ${_formatDuration(holdDuration)}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppTheme.text3,
@@ -971,7 +1066,7 @@ class TradeCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  'closed @${AppTheme.formatPercentage(trade.profitPct!)} TP',
+                  'closed @${trade.profitPct}% TP',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
@@ -981,6 +1076,8 @@ class TradeCard extends StatelessWidget {
               ],
             ),
           ),
+          
+          // Close trade details
           Container(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -999,12 +1096,13 @@ class TradeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
+                
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        trade.closeTrade!.description,
+                        closeTrade?.description ?? 'Close trade',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -1015,7 +1113,7 @@ class TradeCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            DateFormat('HH:mm:ss').format(trade.closeTrade!.createdAt),
+                            DateFormat('HH:mm:ss').format(closeTrade?.createdAt ?? DateTime.now()),
                             style: const TextStyle(
                               fontSize: 10,
                               color: AppTheme.text3,
@@ -1043,11 +1141,12 @@ class TradeCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      AppTheme.formatPrice(trade.closeTrade!.price),
+                      AppTheme.formatPrice(closeTrade?.price ?? 0.0),
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -1057,7 +1156,7 @@ class TradeCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${trade.closeTrade!.qty} qty · ${AppTheme.formatCurrency(trade.closeTrade!.amount)}',
+                      '${closeTrade?.qty.toString() ?? '0'} qty · ${AppTheme.formatCurrency(closeTrade?.amount ?? 0.0)}',
                       style: const TextStyle(
                         fontSize: 10,
                         color: AppTheme.text3,
@@ -1072,43 +1171,67 @@ class TradeCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'open':
-        return AppTheme.amber;
-      case 'closed':
-        return AppTheme.green;
-      case 'cancelled':
-        return AppTheme.text3;
-      default:
-        return AppTheme.text3;
+    } catch (e, stackTrace) {
+      print('ERROR: Exception in _buildCloseTradeDetails for trade ${trade.groupId}: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      
+      // Return a fallback widget to prevent crashes
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.red)),
+        ),
+        child: Text(
+          'Error displaying close trade details',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppTheme.red,
+          ),
+        ),
+      );
     }
   }
 
-  Color _getStatusBgColor(String status) {
-    switch (status) {
-      case 'open':
-        return AppTheme.amberDim;
-      case 'closed':
-        return AppTheme.greenDim;
-      case 'cancelled':
-        return const Color(0x0DFFFFFF);
-      default:
-        return const Color(0x0DFFFFFF);
+  String _getProfitTakeText(Trade trade) {
+    final openTrade = trade.openTrade;
+    if (openTrade != null && openTrade.fillStatus == 'CANCELLED') {
+      return '— order cancelled';
+    } else if (trade.status == 'open') {
+      return 'Waiting · TP @ ${AppTheme.formatPrice(trade.pendingTp?.targetPrice ?? 0.0)}';
+    } else if (trade.status == 'closed') {
+      final profit = trade.profit ?? 0.0;
+      final profitPct = trade.profitPct ?? 0.0;
+      return '${profit > 0 ? '+' : ''}${AppTheme.formatCurrency(profit)} · @${profitPct.toStringAsFixed(0)}%';
     }
+    return '—';
   }
 
-  String _formatDuration(Duration? duration) {
-    if (duration == null) return '---';
+  Color _getProfitTakeColor(Trade trade) {
+    final openTrade = trade.openTrade;
+    if (openTrade != null && openTrade.fillStatus == 'CANCELLED') {
+      return AppTheme.text3;
+    } else if (trade.status == 'open') {
+      return AppTheme.amber;
+    } else if (trade.status == 'closed') {
+      final profit = trade.profit ?? 0.0;
+      return profit > 0 ? AppTheme.green : AppTheme.red;
+    }
+    return AppTheme.text3;
+  }
+
+  String _formatDuration(int? seconds) {
+    if (seconds == null) return '—';
     
-    if (duration.inHours > 0) {
-      return '${duration.inHours}h ${duration.inMinutes % 60}m';
-    } else if (duration.inMinutes > 0) {
-      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    final secs = seconds % 60;
+    
+    if (hours > 0) {
+      return '${hours}h ${minutes}m ${secs}s';
+    } else if (minutes > 0) {
+      return '${minutes}m ${secs}s';
     } else {
-      return '${duration.inSeconds}s';
+      return '${secs}s';
     }
   }
 }

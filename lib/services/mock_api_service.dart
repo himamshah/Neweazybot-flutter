@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../models/bot.dart';
 import '../models/trade.dart';
+import '../models/trade_new.dart';
 import '../models/create_bot.dart';
 import 'api_service.dart';
 
@@ -39,14 +40,20 @@ class MockApiService {
         total: 20,
         activeCoverId: 11,
         nextCover: NextCover(
-          coverId: 12,
+          buyCoverId: 12,
+          sellCoverId: 12,
+          buyCoverDetail: 'Cover 2[5% - 1X]',
+          sellCoverDetail: 'Cover 2[5% - 1X]',
           triggerPrice: 0.03912,
           estimatedAmount: 40.00,
         ),
         lastCover: LastCover(
-          coverId: 11,
-          filledAt: DateTime.parse('2026-04-09T04:21:56Z'),
-          fillPrice: 0.013246,
+          buyCoverId: 11,
+          sellCoverId: 11,
+          buyCoverDetail: 'Cover 1[3% - 1X]',
+          sellCoverDetail: 'Cover 1[3% - 1X]',
+          triggerPrice: null,
+          estimatedAmount: null,
         ),
       ),
     ),
@@ -80,14 +87,20 @@ class MockApiService {
         total: 20,
         activeCoverId: 18,
         nextCover: NextCover(
-          coverId: 19,
+          buyCoverId: 19,
+          sellCoverId: 19,
+          buyCoverDetail: 'Cover 2[5% - 1X]',
+          sellCoverDetail: 'Cover 2[5% - 1X]',
           triggerPrice: 0.3307,
           estimatedAmount: 80.00,
         ),
         lastCover: LastCover(
-          coverId: 18,
-          filledAt: DateTime.parse('2026-03-21T08:18:42Z'),
-          fillPrice: 0.3340,
+          buyCoverId: 18,
+          sellCoverId: 18,
+          buyCoverDetail: 'Cover 1[3% - 1X]',
+          sellCoverDetail: 'Cover 1[3% - 1X]',
+          triggerPrice: null,
+          estimatedAmount: null,
         ),
       ),
     ),
@@ -96,7 +109,7 @@ class MockApiService {
       coin: 'BTCUSDT',
       exchange: 'Binance',
       direction: 'long',
-      status: 'stopped',
+      status: 'paused',
       createdAt: DateTime.parse('2026-01-10T08:00:00Z'),
       pnl: PnL(
         realized: 1240.18,
@@ -122,6 +135,53 @@ class MockApiService {
         activeCoverId: null,
         nextCover: null,
         lastCover: null,
+      ),
+    ),
+    Bot(
+      id: 1481,
+      coin: 'ETHUSDT',
+      exchange: 'Binance',
+      direction: 'short',
+      status: 'closed',
+      createdAt: DateTime.parse('2026-01-08T12:30:00Z'),
+      pnl: PnL(
+        realized: -85.50,
+        unrealized: 0.00,
+        net: -85.50,
+      ),
+      price: Price(
+        market: 3250.75,
+        avgEntry: null,
+        avgEntryDistancePct: null,
+        liquidation: null,
+        liquidationDistancePct: null,
+      ),
+      capital: Capital(
+        assigned: 2000.00,
+        available: 2000.00,
+        inPosition: 0.00,
+        availablePct: 100.0,
+        growthPct: -4.28,
+      ),
+      covers: Covers(
+        total: 15,
+        activeCoverId: null,
+        nextCover: NextCover(
+          buyCoverId: null,
+          sellCoverId: null,
+          buyCoverDetail: null,
+          sellCoverDetail: null,
+          triggerPrice: null,
+          estimatedAmount: null,
+        ),
+        lastCover: LastCover(
+          buyCoverId: 1020,
+          sellCoverId: 1020,
+          buyCoverDetail: 'Cover 15[3% - 1X]',
+          sellCoverDetail: 'Cover 15[3% - 1X]',
+          triggerPrice: null,
+          estimatedAmount: null,
+        ),
       ),
     ),
   ];
@@ -488,6 +548,68 @@ class MockApiService {
         amount: request.botDetails.assignedCapital * (request.botDetails.initialSizePct / 100),
         fillStatus: 'pending',
         createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  static Future<TradesResponse> getTrades({
+    int page = 1,
+  }) async {
+    // Simulate network delay
+    await Future.delayed(_delay);
+
+    // Apply pagination
+    final startIndex = (page - 1) * 20;
+    final endIndex = startIndex + 20;
+    final paginatedTrades = _sampleTrades.skip(startIndex).take(20).toList();
+
+    return TradesResponse(
+      success: true,
+      message: 'success',
+      data: Data(
+        currentPage: page,
+        data: paginatedTrades.map((trade) => TradeNew(
+          id: trade.groupId,
+          responseId: trade.groupId.toString(),
+          status: trade.status,
+          symbol: trade.openTrade?.description ?? 'Trade',
+          price: trade.openTrade?.price ?? 0.0,
+          qty: trade.openTrade?.qty.toString() ?? '0',
+          amount: trade.openTrade?.amount ?? 0.0,
+          commission: trade.openTrade?.commission ?? 0.0,
+          fillStatus: trade.openTrade?.fillStatus ?? 'N/A',
+          createdAt: trade.openTrade?.createdAt ?? DateTime.now(),
+          updatedAt: trade.closeTrade?.createdAt,
+          deletedAt: null,
+          referenceId: trade.coverId,
+          coverIndexId: null,
+          groupId: trade.groupId,
+          sourceId: null,
+          currentBalance: null,
+          tradeProfit: trade.profit ?? 0.0,
+          goalAchieved: 0,
+          userId: 1,
+          closeTradeId: trade.closeTrade?.id,
+          isClose: trade.status == 'closed' ? 1 : 0,
+          failureReason: null,
+          comment: null,
+          filledTimestamp: trade.closeTrade?.createdAt,
+          description: trade.openTrade?.description ?? 'Trade',
+          createdVia: null,
+        )).toList(),
+        firstPageUrl: 'https://futures.eazybot.com/api/trades?page=1',
+        from: 1,
+        lastPage: 1,
+        lastPageUrl: 'https://futures.eazybot.com/api/trades?page=1',
+        links: Links(
+          url: null,
+          label: null,
+          active: false,
+        ),
+        path: 'https://futures.eazybot.com/api/trades',
+        perPage: 20,
+        to: 1,
+        total: _sampleTrades.length,
       ),
     );
   }

@@ -436,15 +436,15 @@ class BotCard extends StatelessWidget {
             _buildCoverItem(
               'LAST',
               'BUY',
-              'C${bot.covers.lastCover!.coverId} · ${_getDaysAgo(bot.covers.lastCover!.filledAt)} @ ${AppTheme.formatPrice(bot.covers.lastCover!.fillPrice)}',
-              '~\$${bot.covers.lastCover!.fillPrice.toInt()}',
+              'C${bot.covers.lastCover!.buyCoverId ?? 'N/A'} · ${bot.covers.lastCover!.buyCoverDetail ?? 'N/A'}',
+              '~\$${bot.covers.lastCover!.estimatedAmount?.toInt() ?? 0}',
             ),
           if (bot.covers.nextCover != null)
             _buildCoverItem(
               'NEXT',
               'BUY',
-              'C${bot.covers.nextCover!.coverId} @ ${AppTheme.formatPrice(bot.covers.nextCover!.triggerPrice)}',
-              '~\$${bot.covers.nextCover!.estimatedAmount.toInt()}',
+              'C${bot.covers.nextCover!.buyCoverId ?? 'N/A'} @ ${bot.covers.nextCover!.triggerPrice != null ? AppTheme.formatPrice(bot.covers.nextCover!.triggerPrice!) : 'N/A'}',
+              '~\$${bot.covers.nextCover!.estimatedAmount?.toInt() ?? 0}',
             ),
         ],
       ),

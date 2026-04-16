@@ -37,7 +37,7 @@ class OpenTrade {
       qty: json['qty'] as int,
       amount: (json['amount'] as num).toDouble(),
       commission: (json['commission'] as num).toDouble(),
-      fillStatus: json['fill_status'] as String,
+      fillStatus: json['status'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
       filledAt: json['filled_at'] != null ? DateTime.parse(json['filled_at'] as String) : null,
     );
@@ -81,7 +81,7 @@ class CloseTrade {
       qty: json['qty'] as int,
       amount: (json['amount'] as num).toDouble(),
       commission: (json['commission'] as num).toDouble(),
-      fillStatus: json['fill_status'] as String,
+      fillStatus: json['status'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
       filledAt: json['filled_at'] != null ? DateTime.parse(json['filled_at'] as String) : null,
     );
@@ -110,7 +110,7 @@ class Trade {
   final int coverId;
   final String coverLabel;
   final String status;
-  final OpenTrade openTrade;
+  final OpenTrade? openTrade;
   final CloseTrade? closeTrade;
   final double? profit;
   final double? profitPct;
@@ -122,7 +122,7 @@ class Trade {
     required this.coverId,
     required this.coverLabel,
     required this.status,
-    required this.openTrade,
+    this.openTrade,
     this.closeTrade,
     this.profit,
     this.profitPct,
@@ -131,18 +131,27 @@ class Trade {
   });
 
   factory Trade.fromJson(Map<String, dynamic> json) {
-    return Trade(
-      groupId: json['group_id'] as int,
-      coverId: json['cover_id'] as int,
-      coverLabel: json['cover_label'] as String,
-      status: json['status'] as String,
-      openTrade: OpenTrade.fromJson(json['open_trade']),
-      closeTrade: json['close_trade'] != null ? CloseTrade.fromJson(json['close_trade']) : null,
-      profit: json['profit'] != null ? (json['profit'] as num).toDouble() : null,
-      profitPct: json['profit_pct'] != null ? (json['profit_pct'] as num).toDouble() : null,
-      holdDurationSeconds: json['hold_duration_seconds'] as int?,
-      pendingTp: json['pending_tp'] != null ? PendingTp.fromJson(json['pending_tp']) : null,
-    );
+    print('DEBUG: Parsing Trade from JSON: $json');
+    try {
+      final trade = Trade(
+        groupId: json['group_id'] as int,
+        coverId: json['cover_id'] as int,
+        coverLabel: json['cover_label'] as String,
+        status: json['status'] as String,
+        openTrade: json['open_trade'] != null ? OpenTrade.fromJson(json['open_trade']) : null,
+        closeTrade: json['close_trade'] != null ? CloseTrade.fromJson(json['close_trade']) : null,
+        profit: json['profit'] != null ? (json['profit'] as num).toDouble() : null,
+        profitPct: json['profit_pct'] != null ? (json['profit_pct'] as num).toDouble() : null,
+        holdDurationSeconds: json['hold_duration_seconds'] as int?,
+        pendingTp: json['pending_tp'] != null ? PendingTp.fromJson(json['pending_tp']) : null,
+      );
+      print('DEBUG: Successfully parsed Trade ${trade.groupId} - ${trade.coverLabel}');
+      return trade;
+    } catch (e, stackTrace) {
+      print('ERROR: Failed to parse Trade: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   String get coverDisplay {
@@ -201,10 +210,21 @@ class BotDetailResponse {
   });
 
   factory BotDetailResponse.fromJson(Map<String, dynamic> json) {
-    return BotDetailResponse(
-      bot: Bot.fromJson(json['bot']),
-      tradesMeta: TradesMeta.fromJson(json['trades_meta']),
-      trades: (json['trades'] as List).map((trade) => Trade.fromJson(trade)).toList(),
-    );
+    print('DEBUG: Parsing BotDetailResponse from JSON');
+    print('DEBUG: Trades data type: ${json['trades'].runtimeType}');
+    print('DEBUG: Trades data: ${json['trades']}');
+    try {
+      final response = BotDetailResponse(
+        bot: Bot.fromJson(json['bot']),
+        tradesMeta: TradesMeta.fromJson(json['trades_meta']),
+        trades: (json['trades'] as List).map((trade) => Trade.fromJson(trade)).toList(),
+      );
+      print('DEBUG: Successfully parsed BotDetailResponse with ${response.trades.length} trades');
+      return response;
+    } catch (e, stackTrace) {
+      print('ERROR: Failed to parse BotDetailResponse: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 }

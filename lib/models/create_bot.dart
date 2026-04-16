@@ -73,6 +73,16 @@ class Cover {
     required this.basePrice,
   });
 
+  factory Cover.fromJson(Map<String, dynamic> json) {
+    return Cover(
+      coverNumber: json['cover_number'] as int,
+      dropdownPct: (json['dropdown_pct'] as num).toDouble(),
+      takeProfitPct: (json['take_profit_pct'] as num).toDouble(),
+      qtyMultiplier: (json['qty_multiplier'] as num).toDouble(),
+      basePrice: json['base_price'] as String,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'cover_number': coverNumber,
