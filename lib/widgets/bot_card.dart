@@ -89,7 +89,7 @@ class BotCard extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    bot.coinSymbol,
+                    bot.coin.length >= 3 ? bot.coin.substring(0, 3).toUpperCase() : bot.coin.toUpperCase(),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -131,11 +131,36 @@ class BotCard extends StatelessWidget {
   }
 
   Widget _buildStatusPill() {
-    final isRunning = bot.status == 'running';
+    String statusText;
+    Color statusColor;
+    Color bgColor;
+    
+    switch (bot.status.toLowerCase()) {
+      case 'running':
+        statusText = 'Running';
+        statusColor = AppTheme.green;
+        bgColor = AppTheme.greenDim;
+        break;
+      case 'paused':
+        statusText = 'Paused';
+        statusColor = AppTheme.amber;
+        bgColor = const Color(0x1DFFB547);
+        break;
+      case 'closed':
+        statusText = 'Closed';
+        statusColor = AppTheme.text3;
+        bgColor = const Color(0x0DFFFFFF);
+        break;
+      default:
+        statusText = 'Unknown';
+        statusColor = AppTheme.text3;
+        bgColor = const Color(0x0DFFFFFF);
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isRunning ? AppTheme.greenDim : const Color(0x0DFFFFFF),
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -145,17 +170,17 @@ class BotCard extends StatelessWidget {
             width: 5,
             height: 5,
             decoration: BoxDecoration(
-              color: isRunning ? AppTheme.green : AppTheme.text3,
+              color: statusColor,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
           const SizedBox(width: 5),
           Text(
-            isRunning ? 'Running' : 'Stopped',
+            statusText,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: isRunning ? AppTheme.green : AppTheme.text3,
+              color: statusColor,
             ),
           ),
         ],

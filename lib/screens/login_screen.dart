@@ -23,16 +23,17 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bg,
+      backgroundColor: const Color(0xFF08090B),
       body: SafeArea(
         child: Center(
           child: Container(
             width: 390,
             decoration: BoxDecoration(
-              color: AppTheme.bg,
+              color: const Color(0xFF08090B),
               borderRadius: BorderRadius.circular(44),
               border: Border.all(color: Colors.white.withOpacity(0.1)),
               boxShadow: [
@@ -46,7 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildStatusBar(),
                 _buildHero(),
                 _buildLoginForm(),
                 _buildDivider(),
@@ -59,75 +59,83 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildStatusBar() {
+  
+  Widget _buildHero() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(28, 44, 28, 36),
       decoration: BoxDecoration(
-        color: AppTheme.bg2,
+        color: Colors.transparent,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Stack(
         children: [
-          Text(
-            '9:41',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.text,
+          // Grid lines background (only in hero section)
+          Positioned.fill(
+            child: ClipRect(
+              child: CustomPaint(
+                painter: _GridLinesPainter(),
+              ),
             ),
           ),
-          Row(
+          // Chart line at bottom with opacity 0.15 (only in hero section)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 60,
+            child: ClipRect(
+              child: CustomPaint(
+                painter: ChartLinePainter(),
+              ),
+            ),
+          ),
+          // Hero content
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Signal bars
+              // Logo
               Container(
-                width: 3,
-                height: 12,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: AppTheme.text.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              Container(
-                width: 3,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: AppTheme.text.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              Container(
-                width: 3,
-                height: 11,
-                decoration: BoxDecoration(
-                  color: AppTheme.text.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              Container(
-                width: 3,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppTheme.text,
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              // WiFi bars
-              Container(
-                width: 22,
-                height: 12,
-                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1a3a5c), Color(0xFF0e2040)],
+                  ),
                   border: Border.all(
-                    color: AppTheme.text.withOpacity(0.35),
+                    color: AppTheme.blue.withOpacity(0.3),
                     width: 1,
                   ),
-                  borderRadius: BorderRadius.circular(3.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.blue.withOpacity(0.2),
+                      blurRadius: 30,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
                 ),
-                child: Container(
-                  margin: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: AppTheme.text,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                child: CustomPaint(
+                  size: const Size(28, 28),
+                  painter: LogoPainter(),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'TradeBot',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.text,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 5),
+              const Text(
+                'Automated crypto trading',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.text3,
                 ),
               ),
             ],
@@ -137,92 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildHero() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(28, 44, 28, 36),
-      decoration: BoxDecoration(
-        color: AppTheme.bg,
-      ),
-      child: Column(
-        children: [
-          // Chart line
-          SizedBox(
-            height: 60,
-            child: CustomPaint(
-              painter: ChartLinePainter(),
-            ),
-          ),
-          const SizedBox(height: 18),
-          // Logo
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1a3a5c), Color(0xFF0e2040)],
-              ),
-              border: Border.all(
-                color: AppTheme.blue.withOpacity(0.3),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.blue.withOpacity(0.2),
-                  blurRadius: 30,
-                  offset: const Offset(0, 0),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                CustomPaint(
-                  size: const Size(28, 28),
-                  painter: LogoPainter(),
-                ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    width: 5,
-                    height: 5,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.blue,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'TradeBot',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.text,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 5),
-          const Text(
-            'Automated crypto trading',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.text3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLoginForm() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 35),
       child: Column(
         children: [
           _buildInputField(
@@ -444,10 +369,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      print('LOGIN DEBUG: Starting login process');
+      print('LOGIN DEBUG: Email: ${_emailController.text.trim()}');
+      print('LOGIN DEBUG: Password length: ${_passwordController.text.length}');
+      
       final response = await AuthService.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      print('LOGIN DEBUG: Login successful');
+      print('LOGIN DEBUG: User: ${response.user.name}');
+      print('LOGIN DEBUG: Token length: ${response.token.length}');
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -456,12 +389,17 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('LOGIN ERROR: Login failed');
+      print('LOGIN ERROR: Error: $e');
+      print('LOGIN ERROR: Stack trace: $stackTrace');
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Login failed: ${e.toString()}'),
             backgroundColor: AppTheme.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -539,6 +477,63 @@ class LogoPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(center, size.width * 0.09, circlePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Custom painter for blue grid lines background
+class _GridLinesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const gridSize = 32.0;
+    const lineColor = Color(0xFF4D9EFF);
+    const lineOpacity = 0.04;
+    
+    // Draw horizontal lines
+    for (double y = 0; y <= size.height; y += gridSize) {
+      final opacity = _calculateGridOpacity(y, size.height);
+      final paint = Paint()
+        ..color = lineColor.withOpacity(lineOpacity * opacity)
+        ..strokeWidth = 1
+        ..style = PaintingStyle.stroke;
+      
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        paint,
+      );
+    }
+    
+    // Draw vertical lines
+    for (double x = 0; x <= size.width; x += gridSize) {
+      final opacity = _calculateGridOpacity(size.height * 0.5, size.height);
+      final paint = Paint()
+        ..color = lineColor.withOpacity(lineOpacity * opacity)
+        ..strokeWidth = 1
+        ..style = PaintingStyle.stroke;
+      
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        paint,
+      );
+    }
+  }
+
+  double _calculateGridOpacity(double y, double totalHeight) {
+    // Create gradient effect: transparent 0% -> visible 30% -> visible 70% -> transparent 100%
+    final topThreshold = totalHeight * 0.3;
+    final bottomThreshold = totalHeight * 0.7;
+    
+    if (y < topThreshold) {
+      return y / topThreshold; // Fade in
+    } else if (y > bottomThreshold) {
+      return (totalHeight - y) / (totalHeight - bottomThreshold); // Fade out
+    } else {
+      return 1.0; // Fully visible
+    }
   }
 
   @override

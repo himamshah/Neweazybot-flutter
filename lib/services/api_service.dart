@@ -4,6 +4,7 @@ import '../models/bot.dart';
 import '../models/trade.dart';
 import '../models/trade_new.dart';
 import '../models/create_bot.dart';
+import '../models/profile.dart';
 import 'auth_service.dart';
 
 class ApiService {
@@ -193,6 +194,63 @@ class ApiService {
     }
     return Exception('An unexpected error occurred: $exception');
   }
+
+  static Future<ProfileResponse> getProfile() async {
+    try {
+      final headers = await _headers;
+      final uri = Uri.parse('$baseUrl/api/profile');
+      
+      print('API DEBUG: Profile Request URL: $uri');
+      
+      final response = await http.get(uri, headers: headers).timeout(timeout);
+      
+      print('API DEBUG: Profile Response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        print('API DEBUG: Profile Parsed JSON data: $data');
+        return ProfileResponse.fromJson(data);
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      throw _handleException(e);
+    }
+  }
+
+  static Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final headers = await _headers;
+      final uri = Uri.parse('$baseUrl/api/change-password');
+      
+      print('API DEBUG: Change Password Request URL: $uri');
+      
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: json.encode({
+          'current_password': currentPassword,
+          'password': newPassword,
+          'password_confirmation': newPassword,
+        }),
+      ).timeout(timeout);
+      
+      print('API DEBUG: Change Password Response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        print('API DEBUG: Change Password Parsed JSON data: $data');
+        return data;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      throw _handleException(e);
+    }
+  }
 }
 
 class BotsListResponse {
@@ -217,12 +275,20 @@ class Meta {
   final int? limit;
   final int? offset;
   final bool? hasMore;
+  final int? allCount;
+  final int? runningCount;
+  final int? pausedCount;
+  final int? closedCount;
 
   Meta({
     this.total,
     this.limit,
     this.offset,
     this.hasMore,
+    this.allCount,
+    this.runningCount,
+    this.pausedCount,
+    this.closedCount,
   });
 
   factory Meta.fromJson(Map<String, dynamic> json) {
@@ -231,6 +297,10 @@ class Meta {
       limit: json['limit'] as int? ?? 0,
       offset: json['offset'] as int? ?? 0,
       hasMore: json['has_more'] as bool? ?? false,
+      allCount: json['all_count'] as int? ?? 0,
+      runningCount: json['running_count'] as int? ?? 0,
+      pausedCount: json['paused_count'] as int? ?? 0,
+      closedCount: json['closed_count'] as int? ?? 0,
     );
   }
 }

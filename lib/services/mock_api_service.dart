@@ -3,6 +3,7 @@ import '../models/bot.dart';
 import '../models/trade.dart';
 import '../models/trade_new.dart';
 import '../models/create_bot.dart';
+import '../models/profile.dart';
 import 'api_service.dart';
 
 class MockApiService {
@@ -612,5 +613,60 @@ class MockApiService {
         total: _sampleTrades.length,
       ),
     );
+  }
+
+  static Future<ProfileResponse> getProfile() async {
+    await Future.delayed(_delay);
+    
+    return ProfileResponse(
+      success: true,
+      data: ProfileData(
+        name: 'Sagar',
+        email: 'sagar22.shah@gmail.com',
+        memberSince: 'Nov 2025',
+        avatar: 'S',
+        stats: ProfileStats(
+          totalBots: 132,
+          runningBots: 1,
+          allTimePnl: 9085.54,
+        ),
+        profileInfo: ProfileInfo(
+          fullName: 'Sagar',
+          email: 'sagar22.shah@gmail.com',
+          role: 'Admin',
+          userId: 1,
+          lastLogin: 'Apr 16, 2026 9:54 AM',
+        ),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await Future.delayed(_delay);
+    
+    // Mock validation
+    if (currentPassword.isEmpty) {
+      throw Exception('Current password is required');
+    }
+    
+    if (newPassword.length < 8) {
+      throw Exception('New password must be at least 8 characters long');
+    }
+    
+    if (newPassword == currentPassword) {
+      throw Exception('New password must be different from current password');
+    }
+    
+    // Simulate server validation for password confirmation match
+    // In real API, this would be validated on server side
+    print('MOCK DEBUG: Change password params - current_password: $currentPassword, password: $newPassword, password_confirmation: $newPassword');
+    
+    return {
+      'success': true,
+      'message': 'Password changed successfully',
+    };
   }
 }

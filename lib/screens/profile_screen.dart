@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import 'bots_list_screen.dart';
+import '../services/unified_api_service.dart';
+import '../models/profile.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -10,14 +13,51 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isLoading = false;
+  ProfileData? _profileData;
+  String? _error;
+  
+  // Password change state
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
-  bool _isLoading = false;
+  bool _isChangingPassword = false;
   int _passwordStrength = 0;
+  String _passwordStrengthLabel = 'Min 8 characters, include numbers & symbols';
+  Color _passwordStrengthColor = AppTheme.text3;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final response = await UnifiedApiService.getProfile();
+      if (mounted) {
+        setState(() {
+          _profileData = response.data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,12 +74,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Column(
               children: [
-                _buildStatusBar(),
-                _buildAvatarSection(),
-                _buildStatsRow(),
-                _buildProfileSection(),
-                _buildPasswordSection(),
-                _buildDangerZone(),
+                _buildNavBar(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        if (_isLoading)
+                          _buildLoadingState()
+                        else if (_error != null)
+                          _buildErrorState()
+                        else if (_profileData != null)
+                          _buildProfileContent(),
+                      ],
+                    ),
+                  ),
+                ),
                 _buildTabBar(),
               ],
             ),
@@ -49,87 +98,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatusBar() {
+  
+  Widget _buildNavBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            '9:41',
-            style: const TextStyle(
-              fontSize: 12,
+          const Text(
+            'Account',
+            style: TextStyle(
+              fontSize: 20,
               fontWeight: FontWeight.w600,
               color: AppTheme.text,
+              letterSpacing: -0.3,
             ),
           ),
-          Row(
-            children: [
-              // Signal bars
-              Container(
-                width: 3,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppTheme.text.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(1),
+          GestureDetector(
+            onTap: _handleLogout,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.redDim,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Sign out',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.red,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              Container(
-                width: 3,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: AppTheme.text.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              Container(
-                width: 3,
-                height: 11,
-                decoration: BoxDecoration(
-                  color: AppTheme.text.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              Container(
-                width: 3,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppTheme.text,
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-              // WiFi bars
-              Container(
-                width: 22,
-                height: 12,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: AppTheme.text.withOpacity(0.35),
-                    width: 1,
-                  ),
-                  borderRadius: BorderRadius.circular(3.5),
-                ),
-                child: Container(
-                  margin: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: AppTheme.text,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAvatarSection() {
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(32.0),
+        child: CircularProgressIndicator(
+          color: AppTheme.blue,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Error loading profile',
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppTheme.red,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error ?? 'Unknown error',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppTheme.text3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileContent() {
+    final profile = _profileData!;
+    return Column(
+      children: [
+        _buildAvatarSection(profile),
+        const SizedBox(height: 14),
+        _buildStatsRow(profile.stats),
+        const SizedBox(height: 14),
+        _buildProfileSection(profile.profileInfo),
+        const SizedBox(height: 12),
+        _buildPasswordSection(),
+        const SizedBox(height: 12),
+        _buildDangerZone(),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Widget _buildAvatarSection(ProfileData profile) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(28, 20, 20),
+      padding: const EdgeInsets.fromLTRB(28, 20, 20, 20),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
@@ -147,52 +233,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   AppTheme.blue.withOpacity(0.12),
                   Colors.transparent,
                 ],
-                stops: const [0.0, 0.7],
               ),
             ),
           ),
-          // Avatar
-          Stack(
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF1a3a5c), Color(0xFF0e2040)],
-                  ),
-                  border: Border.all(
-                    color: AppTheme.blue.withOpacity(0.35),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.blue.withOpacity(0.15),
-                      blurRadius: 24,
-                      offset: const Offset(0, 0),
-                    ),
-                  ],
+          // Avatar ring
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF1a3a5c),
+                  const Color(0xFF0e2040),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: AppTheme.blue.withOpacity(0.35),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.blue.withOpacity(0.15),
+                  blurRadius: 24,
+                  spreadRadius: 0,
                 ),
-                child: const Center(
-                  child: Text(
-                    'S',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.blue,
-                    ),
-                  ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                profile.avatar,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.blue,
                 ),
               ),
-            ],
+            ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Sagar Mehta',
-            style: TextStyle(
+          Text(
+            profile.name,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: AppTheme.text,
@@ -200,28 +284,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 3),
+          Text(
+            profile.email,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.text3,
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'sagar@tradebot.app',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.text3,
-                ),
-              ),
               Container(
                 width: 4,
                 height: 4,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppTheme.green,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 5),
-              const Text(
-                'Member since Jan 2025',
-                style: TextStyle(
+              Text(
+                'Member since ${profile.memberSince}',
+                style: const TextStyle(
                   fontSize: 11,
                   color: AppTheme.text3,
                 ),
@@ -233,107 +318,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(ProfileStats stats) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 14, 0),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
-        border: Border.all(color: AppTheme.border),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  '4',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.text,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const Text(
-                  'Total bots',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppTheme.text3,
-                  ),
-                ),
-              ],
-            ),
+          _buildStatCell('${stats.totalBots}', 'Total bots'),
+          Container(
+            width: 1,
+            height: 40,
+            color: AppTheme.border,
           ),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  '3',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.text,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const Text(
-                  'Running',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppTheme.text3,
-                  ),
-                ),
-              ],
-            ),
+          _buildStatCell('${stats.runningBots}', 'Running'),
+          Container(
+            width: 1,
+            height: 40,
+            color: AppTheme.border,
           ),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  '+$850',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.green,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const Text(
-                  'All-time PnL',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppTheme.text3,
-                  ),
-                ),
-              ],
-            ),
+          _buildStatCell(
+            '+${stats.allTimePnl.toStringAsFixed(2)}',
+            'All-time PnL',
+            isPositive: true,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileSection() {
+  Widget _buildStatCell(String value, String label, {bool isPositive = false}) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isPositive ? AppTheme.green : AppTheme.text,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: AppTheme.text3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileSection(ProfileInfo profileInfo) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 14, 0),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
-        border: Border.all(color: AppTheme.border),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         children: [
           _buildSectionHeader('Profile info', Icons.person_outline),
-          _buildFieldRow('Full name', 'Sagar Mehta'),
-          _buildFieldRow('Email', 'sagar@tradebot.app'),
-          _buildFieldRow('Role', 'Admin', color: AppTheme.amber),
-          _buildFieldRow('User ID', '#USR-0042', isMono: true),
-          _buildFieldRow('Last login', 'Today, 9:41 AM', isMuted: true),
+          _buildFieldRow('Full name', profileInfo.fullName),
+          _buildFieldRow('Email', profileInfo.email),
+          _buildFieldRow('Role', profileInfo.role, roleColor: true),
+          _buildFieldRow('User ID', '#${profileInfo.userId}', isMono: true, isMuted: true),
+          _buildFieldRow('Last login', profileInfo.lastLogin, isMuted: true),
         ],
       ),
     );
@@ -341,104 +400,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildPasswordSection() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 14, 0),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
-        border: Border.all(color: AppTheme.border),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         children: [
           _buildSectionHeader('Change password', Icons.lock_outline),
-          _buildPasswordField(
-            'CURRENT PASSWORD',
-            _currentPasswordController,
-            _obscureCurrentPassword,
-            (value) {},
-          ),
-          const SizedBox(height: 4),
-          _buildPasswordField(
-            'NEW PASSWORD',
-            _newPasswordController,
-            _obscureNewPassword,
-            _checkPasswordStrength,
-          ),
-          const SizedBox(height: 4),
-          _buildPasswordField(
-            'CONFIRM NEW PASSWORD',
-            _confirmPasswordController,
-            _obscureConfirmPassword,
-            (value) {},
-          ),
-          const SizedBox(height: 12),
-          _buildPasswordSubmit(),
+          _buildPasswordForm(),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 11, 14),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 13,
-            color: AppTheme.blue,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.blue,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
-      ),
+  Widget _buildPasswordForm() {
+    return Column(
+      children: [
+        _buildPasswordField(
+          'CURRENT PASSWORD',
+          _currentPasswordController,
+          _obscureCurrentPassword,
+          (value) => setState(() => _obscureCurrentPassword = value),
+        ),
+        _buildPasswordField(
+          'NEW PASSWORD',
+          _newPasswordController,
+          _obscureNewPassword,
+          (value) => setState(() => _obscureNewPassword = value),
+          showStrength: true,
+        ),
+        _buildPasswordField(
+          'CONFIRM NEW PASSWORD',
+          _confirmPasswordController,
+          _obscureConfirmPassword,
+          (value) => setState(() => _obscureConfirmPassword = value),
+        ),
+        _buildPasswordSubmitButton(),
+      ],
     );
   }
 
-  Widget _buildFieldRow(String label, String value, {Color? color, bool isMono = false, bool isMuted = false}) {
+  Widget _buildPasswordField(
+    String label,
+    TextEditingController controller,
+    bool obscureText,
+    Function(bool) onToggle, {
+    bool showStrength = false,
+  }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
-      ),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.text2,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                color: color ?? AppTheme.text,
-                fontWeight: FontWeight.w500,
-                fontFamily: isMono ? 'monospace' : null,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPasswordField(String label, TextEditingController controller, bool obscure, Function(String)? onChanged) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
@@ -454,39 +465,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 5),
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.bg3,
-              border: Border.all(color: AppTheme.border2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: TextField(
+          TextField(
               controller: controller,
-              obscureText: obscure,
-              decoration: InputDecoration(
-                hintText: label == 'NEW PASSWORD' ? 'Enter new password' : 'Enter current password',
-                hintStyle: const TextStyle(
-                  color: AppTheme.text3,
-                ),
-                border: InputBorder.none,
-              ),
+              obscureText: obscureText,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppTheme.text,
               ),
-              onChanged: onChanged,
+              decoration: InputDecoration(
+                hintText: showStrength 
+                    ? 'Enter new password' 
+                    : 'Enter current password',
+                hintStyle: const TextStyle(
+                  color: AppTheme.text3,
+                ),
+                filled: true,
+                fillColor: AppTheme.bg3,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppTheme.border2),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: AppTheme.border2),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: AppTheme.blue.withOpacity(0.4),
+                    width: 1,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(12, 11, 40, 11),
+                suffixIcon: GestureDetector(
+                  onTap: () => onToggle(!obscureText),
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    child: Icon(
+                      obscureText ? Icons.visibility_off : Icons.visibility,
+                      size: 15,
+                      color: AppTheme.text3,
+                    ),
+                  ),
+                ),
+              ),
+              onChanged: showStrength ? (value) => _updatePasswordStrength(value) : null,
             ),
-          ),
+          if (showStrength) ...[
+            const SizedBox(height: 7),
+            _buildPasswordStrengthBar(),
+            const SizedBox(height: 4),
+            Text(
+              _passwordStrengthLabel,
+              style: TextStyle(
+                fontSize: 10,
+                color: _passwordStrengthColor,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildPasswordSubmit() {
+  Widget _buildPasswordStrengthBar() {
+    return Row(
+      children: [
+        _buildStrengthSegment(0),
+        const SizedBox(width: 3),
+        _buildStrengthSegment(1),
+        const SizedBox(width: 3),
+        _buildStrengthSegment(2),
+        const SizedBox(width: 3),
+        _buildStrengthSegment(3),
+      ],
+    );
+  }
+
+  Widget _buildStrengthSegment(int index) {
+    final bool isFilled = index < _passwordStrength;
+    Color color = AppTheme.bg4;
+    
+    if (isFilled) {
+      if (_passwordStrength <= 1) {
+        color = AppTheme.red;
+      } else if (_passwordStrength <= 2) {
+        color = AppTheme.amber;
+      } else {
+        color = AppTheme.green;
+      }
+    }
+    
+    return Expanded(
+      child: Container(
+        height: 3,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordSubmitButton() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 14, 0),
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _handlePasswordUpdate,
+        onPressed: _isChangingPassword ? null : _handleChangePassword,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.blue,
           foregroundColor: Colors.white,
@@ -495,45 +580,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(11),
           ),
           elevation: 0,
-          shadowColor: MaterialStatePropertyAll(AppTheme.blue.withOpacity(0.25)),
+          shadowColor: Colors.transparent,
         ),
-        child: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.center,
+          child: _isChangingPassword
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text(
+                  'Update password',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              )
-            : const Text(
-                'Update password',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        ),
       ),
     );
   }
 
   Widget _buildDangerZone() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 14, 0),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
-        border: Border.all(color: AppTheme.border),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         children: [
-          _buildSectionHeader('Danger zone', Icons.warning, color: AppTheme.red),
-          const SizedBox(height: 13),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
+          _buildSectionHeader('Danger zone', Icons.warning, isDanger: true),
+          Padding(
+            padding: const EdgeInsets.all(13),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
@@ -541,6 +629,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         color: AppTheme.red,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -553,17 +642,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-              ),
-              Container(
-                width: 7,
-                height: 12,
-                child: const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
+                const Icon(
+                  Icons.chevron_right,
                   color: AppTheme.red,
+                  size: 16,
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon, {bool isDanger = false}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 13,
+            color: isDanger ? AppTheme.red : AppTheme.blue,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDanger ? AppTheme.red : AppTheme.blue,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFieldRow(String label, String value, {bool isMono = false, bool isMuted = false, bool roleColor = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.text2,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              color: roleColor ? AppTheme.amber : (isMuted ? AppTheme.text3 : AppTheme.text),
+              fontWeight: FontWeight.w500,
+              fontFamily: isMono ? 'monospace' : null,
+            ),
           ),
         ],
       ),
@@ -572,123 +715,201 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildTabBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(0, 0, 22, 8),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
         children: [
-          Expanded(
-            child: _buildTabItem(Icons.dashboard_outlined, 'Dashboard', false),
-          ),
-          Expanded(
-            child: _buildTabItem(Icons.list_alt, 'Bots', false),
-          ),
-          Expanded(
-            child: _buildTabItem(Icons.show_chart, 'Trades', true),
-          ),
+          _buildTabItem(Icons.grid_view, 'Dashboard', false),
+          _buildTabItem(Icons.show_chart, 'Bots', false),
+          _buildTabItem(Icons.receipt_long, 'Trades', false),
+          _buildTabItem(Icons.person, 'Account', true),
         ],
       ),
     );
   }
 
   Widget _buildTabItem(IconData icon, String label, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: isActive ? AppTheme.blue : AppTheme.text3,
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (!isActive) {
+            Navigator.pop(context);
+          }
+        },
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 18,
               color: isActive ? AppTheme.blue : AppTheme.text3,
             ),
-          ),
-          if (isActive)
-            Container(
-              width: 4,
-              height: 4,
-              decoration: const BoxDecoration(
-                color: AppTheme.blue,
-                shape: BoxShape.circle,
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: isActive ? AppTheme.blue : AppTheme.text3,
               ),
             ),
-        ],
-      ],
+            if (isActive) ...[
+              const SizedBox(height: 1),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: const BoxDecoration(
+                  color: AppTheme.blue,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
-  void _checkPasswordStrength(String value) {
-    int score = 0;
-    if (value.length >= 8) score++;
-    if (value.length >= 12) score++;
-    if (RegExp(r'[0-9]').hasMatch(value) && RegExp(r'[a-zA-Z]').hasMatch(value)) score++;
-    if (RegExp(r'[^a-zA-Z0-9]').hasMatch(value)) score++;
-
-    setState(() {
-      _passwordStrength = score;
-    });
-  }
-
-  Future<void> _handlePasswordUpdate() async {
-    if (_currentPasswordController.text.isEmpty || _newPasswordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all password fields'),
-          backgroundColor: AppTheme.red,
-        ),
-      );
-      return;
-    }
-
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Passwords do not match'),
-          backgroundColor: AppTheme.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
+  Future<void> _handleLogout() async {
     try {
-      // TODO: Implement actual password update logic
-      await Future.delayed(const Duration(seconds: 2)); // Simulate API call
-      
+      await AuthService.clearToken();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password updated successfully'),
-            backgroundColor: AppTheme.green,
-          ),
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Password update failed: ${e.toString()}'),
+            content: Text('Error signing out: $e'),
             backgroundColor: AppTheme.red,
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
+  }
+
+  void _updatePasswordStrength(String password) {
+    int score = 0;
+    
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (password.contains(RegExp(r'[0-9]')) && password.contains(RegExp(r'[a-zA-Z]'))) score++;
+    if (password.contains(RegExp(r'[^a-zA-Z0-9]'))) score++;
+    
+    setState(() {
+      _passwordStrength = score;
+      
+      final labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+      _passwordStrengthLabel = password.isEmpty 
+          ? 'Min 8 characters, include numbers & symbols' 
+          : labels[score] ?? 'Strong';
+      
+      if (score >= 3) {
+        _passwordStrengthColor = AppTheme.green;
+      } else if (score >= 2) {
+        _passwordStrengthColor = AppTheme.amber;
+      } else {
+        _passwordStrengthColor = AppTheme.text3;
+      }
+    });
+  }
+
+  Future<void> _handleChangePassword() async {
+    final currentPassword = _currentPasswordController.text.trim();
+    final newPassword = _newPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+
+    // Validation
+    if (currentPassword.isEmpty) {
+      _showError('Please enter your current password');
+      return;
+    }
+
+    if (newPassword.isEmpty) {
+      _showError('Please enter a new password');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      _showError('New password must be at least 8 characters long');
+      return;
+    }
+
+    if (newPassword == currentPassword) {
+      _showError('New password must be different from current password');
+      return;
+    }
+
+    if (confirmPassword.isEmpty) {
+      _showError('Please confirm your new password');
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      _showError('New passwords do not match');
+      return;
+    }
+
+    setState(() {
+      _isChangingPassword = true;
+    });
+
+    try {
+      final response = await UnifiedApiService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+
+      if (response['success'] == true) {
+        _showSuccess(response['message'] ?? 'Password changed successfully');
+        // Clear form
+        _currentPasswordController.clear();
+        _newPasswordController.clear();
+        _confirmPasswordController.clear();
+        setState(() {
+          _passwordStrength = 0;
+          _passwordStrengthLabel = 'Min 8 characters, include numbers & symbols';
+          _passwordStrengthColor = AppTheme.text3;
+        });
+      } else {
+        _showError(response['message'] ?? 'Failed to change password');
+      }
+    } catch (e) {
+      _showError('Error changing password: $e');
+    } finally {
+      setState(() {
+        _isChangingPassword = false;
+      });
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.red,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppTheme.green,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

@@ -6,6 +6,7 @@ import '../widgets/bot_card.dart';
 import '../utils/app_theme.dart';
 import 'create_bot_screen.dart';
 import 'bot_details_screen.dart';
+import 'profile_screen.dart';
 import 'login_screen.dart';
 
 class BotsListScreen extends StatefulWidget {
@@ -28,6 +29,14 @@ class _BotsListScreenState extends State<BotsListScreen> {
   int totalCount = 0;
   bool hasMore = false;
   final int pageSize = 20;
+  
+  // Separate total counts for each filter
+  Map<String, int> filterTotals = {
+    'all': 0,
+    'running': 0,
+    'paused': 0,
+    'closed': 0,
+  };
 
   @override
   void initState() {
@@ -45,6 +54,7 @@ class _BotsListScreenState extends State<BotsListScreen> {
     }
   }
 
+  
   Future<void> _loadBots({bool isLoadMore = false}) async {
     if (isLoadMore) {
       setState(() {
@@ -81,6 +91,13 @@ class _BotsListScreenState extends State<BotsListScreen> {
         } else {
           bots = response.bots;
         }
+        
+        // Extract all filter counts from API response
+        filterTotals['all'] = response.meta.allCount ?? 0;
+        filterTotals['running'] = response.meta.runningCount ?? 0;
+        filterTotals['paused'] = response.meta.pausedCount ?? 0;
+        filterTotals['closed'] = response.meta.closedCount ?? 0;
+        
         totalCount = response.meta.total ?? 0;
         hasMore = response.meta.hasMore ?? false;
         isLoading = false;
@@ -187,13 +204,11 @@ class _BotsListScreenState extends State<BotsListScreen> {
                   ),
                 ),
               const SizedBox(width: 8),
-              _buildApiToggle(),
-              const SizedBox(width: 8),
               _buildNavButton(Icons.search_outlined, false),
               const SizedBox(width: 8),
               _buildNavButton(Icons.add, true),
               const SizedBox(width: 8),
-              _buildNavButton(Icons.refresh_outlined, false, _clearTokenAndReload),
+              _buildNavButton(Icons.person_outline, false, _handleProfile),
               const SizedBox(width: 8),
               _buildNavButton(Icons.logout_outlined, false, _handleLogout),
             ],
@@ -203,27 +218,9 @@ class _BotsListScreenState extends State<BotsListScreen> {
     );
   }
 
-  Widget _buildApiToggle() {
-    final isMock = UnifiedApiService.useMockData;
-    return Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        color: isMock ? AppTheme.greenDim : AppTheme.blueDim,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isMock ? AppTheme.green : AppTheme.blue),
-      ),
-      child: IconButton(
-        icon: Icon(isMock ? Icons.data_object : Icons.cloud, size: 14),
-        onPressed: () {
-          setState(() {
-            UnifiedApiService.useMockData = !isMock;
-          });
-          _loadBots(); // Reload data with new API setting
-        },
-        padding: EdgeInsets.zero,
-        color: isMock ? AppTheme.green : AppTheme.blue,
-      ),
+  void _handleProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
     );
   }
 
@@ -282,18 +279,12 @@ class _BotsListScreenState extends State<BotsListScreen> {
         child: Row(
           children: filters.map((filter) {
             final isActive = selectedFilter == filter['value'];
-            final count = bots.where((bot) {
-              if (filter['value'] == 'all') return true;
-              final botStatus = bot.status.toLowerCase();
-              final filterStatus = filter['value']!.toLowerCase();
-              return botStatus == filterStatus;
-            }).length;
             
-            // Show total count for "All" filter, current count for others
-            final displayCount = filter['value'] == 'all' ? totalCount : count;
+            // Use stored filter totals instead of counting from current bots list
+            final displayCount = filterTotals[filter['value']] ?? 0;
             
             // Debug logging for counters
-            print('COUNTER DEBUG: Filter ${filter['label']} (${filter['value']}) count: $displayCount (loaded: ${bots.length}, total: $totalCount)');
+            print('COUNTER DEBUG: Filter ${filter['label']} (${filter['value']}) count: $displayCount (loaded: ${bots.length}, current filter total: $totalCount)');
             
             return Padding(
               padding: const EdgeInsets.only(right: 8),

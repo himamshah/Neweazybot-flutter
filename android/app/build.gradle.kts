@@ -5,6 +5,10 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+dependencies {
+    implementation("com.google.android.play:core:1.10.3")
+}
+
 android {
     namespace = "com.example.easybot_complete"
     compileSdk = flutter.compileSdkVersion
@@ -16,7 +20,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -35,6 +39,13 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            
+            // Enable code shrinking to allow resource shrinking
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

@@ -5,6 +5,7 @@ import '../models/bot.dart';
 import '../models/trade.dart';
 import '../models/trade_new.dart';
 import '../models/create_bot.dart';
+import '../models/profile.dart';
 
 class UnifiedApiService {
   static bool _useMockData = false; // Set to true for mock data, false for real API
@@ -79,6 +80,31 @@ class UnifiedApiService {
       return MockApiService.getTrades(page: page);
     } else {
       return ApiService.getTrades(page: page);
+    }
+  }
+
+  static Future<ProfileResponse> getProfile() async {
+    if (_useMockData) {
+      return MockApiService.getProfile();
+    } else {
+      return ApiService.getProfile();
+    }
+  }
+
+  static Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_useMockData) {
+      return MockApiService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } else {
+      return ApiService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
     }
   }
 }

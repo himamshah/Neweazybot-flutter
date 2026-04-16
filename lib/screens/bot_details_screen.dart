@@ -169,7 +169,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               ),
             ],
           ),
-          const SizedBox(width: 32),
+          const Spacer(),
           Container(
             width: 32,
             height: 32,
@@ -227,7 +227,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    bot.coinSymbol,
+                    bot.coin.length >= 3 ? bot.coin.substring(0, 3).toUpperCase() : bot.coin.toUpperCase(),
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -236,6 +236,8 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                   ),
                 ),
               ),
+              const SizedBox(width: 10),
+              _buildStatusPill(),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,7 +262,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             ],
           ),
           const Spacer(),
-          _buildStatusPill(),
         ],
       ),
     );
@@ -268,11 +269,36 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   Widget _buildStatusPill() {
     final bot = botDetail ?? widget.bot;
-    final isRunning = bot.status == 'running';
+    String statusText;
+    Color statusColor;
+    Color bgColor;
+    
+    switch (bot.status.toLowerCase()) {
+      case 'running':
+        statusText = 'Running';
+        statusColor = AppTheme.green;
+        bgColor = AppTheme.greenDim;
+        break;
+      case 'paused':
+        statusText = 'Paused';
+        statusColor = AppTheme.amber;
+        bgColor = const Color(0x1DFFB547);
+        break;
+      case 'closed':
+        statusText = 'Closed';
+        statusColor = AppTheme.text3;
+        bgColor = const Color(0x0DFFFFFF);
+        break;
+      default:
+        statusText = 'Unknown';
+        statusColor = AppTheme.text3;
+        bgColor = const Color(0x0DFFFFFF);
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isRunning ? AppTheme.greenDim : const Color(0x0DFFFFFF),
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -282,17 +308,17 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
             width: 5,
             height: 5,
             decoration: BoxDecoration(
-              color: isRunning ? AppTheme.green : AppTheme.text3,
+              color: statusColor,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
           const SizedBox(width: 5),
           Text(
-            isRunning ? 'Running' : 'Stopped',
+            statusText,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: isRunning ? AppTheme.green : AppTheme.text3,
+              color: statusColor,
             ),
           ),
         ],
@@ -398,7 +424,9 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           ),
           const Spacer(),
           Text(
-            '${AppTheme.formatPrice(bot.price.liquidation!)} +${AppTheme.formatPercentage(bot.price.liquidationDistancePct!)} from mkt',
+            bot.price.liquidation != null && bot.price.liquidationDistancePct != null 
+                ? '${AppTheme.formatPrice(bot.price.liquidation!)} +${AppTheme.formatPercentage(bot.price.liquidationDistancePct!)} from mkt'
+                : 'No liquidation data',
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
@@ -690,12 +718,25 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       );
     }
 
-    return ListView.separated(
+    // Group trades by date
+    final Map<String, List<Trade>> groupedTrades = {};
+    for (final trade in trades) {
+      final tradeDate = trade.openTrade?.createdAt ?? DateTime.now();
+      final dateKey = DateFormat('d MMMM yyyy').format(tradeDate);
+      if (!groupedTrades.containsKey(dateKey)) {
+        groupedTrades[dateKey] = [];
+      }
+      groupedTrades[dateKey]!.add(trade);
+    }
+
+    final sortedDates = groupedTrades.keys.toList()
+      ..sort((a, b) => b.compareTo(a)); // Sort dates descending
+
+    return ListView.builder(
       padding: const EdgeInsets.all(14),
-      itemCount: trades.length + (hasMore ? 1 : 0),
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemCount: sortedDates.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == trades.length && hasMore) {
+        if (index == sortedDates.length && hasMore) {
           // Show loading indicator at bottom
           return const Center(
             child: Padding(
@@ -707,8 +748,33 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           );
         }
         
-        final trade = trades[index];
-        return _buildTradeCard(trade);
+        final date = sortedDates[index];
+        final dateTrades = groupedTrades[date]!;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date header
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                date,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.text,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+            // Trades for this date
+            ...dateTrades.map((trade) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildTradeCard(trade),
+            )),
+            if (index < sortedDates.length - 1) const SizedBox(height: 24),
+          ],
+        );
       },
     );
   }

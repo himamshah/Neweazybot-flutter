@@ -118,6 +118,13 @@ class AuthService {
     }));
   }
 
+  static Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
+    print('AUTH DEBUG: Token and user data cleared');
+  }
+
   static Exception _handleError(http.Response response) {
     try {
       final data = json.decode(response.body) as Map<String, dynamic>;
