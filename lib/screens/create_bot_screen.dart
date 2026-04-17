@@ -17,9 +17,9 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
 
   // Bot Details
   String _selectedExchange = '';
-  String _selectedApiKey = '';
+  int _selectedApiKey = 0; // Changed to int for exchange_key_id
   String _selectedTradingPair = '';
-  String _selectedPreset = 'Custom';
+  int _selectedPreset = 0; // 0 for Custom, 1 for Conservative, 2 for Aggressive
   double _botCapital = 1000.0;
   double _initialSizePct = 5.0;
 
@@ -147,10 +147,10 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
       icon: Icons.description,
       children: [
         _buildFieldRow('Exchange', _selectedExchange.isEmpty ? 'Select exchange' : _selectedExchange, () => _showExchangeSelector()),
-        _buildFieldRow('API key', _selectedApiKey.isEmpty ? 'Select API key' : 'Masked key', () => _showApiKeySelector()),
+        _buildFieldRow('API key', _selectedApiKey == 0 ? 'Select API key' : 'API Key $_selectedApiKey', () => _showApiKeySelector()),
         _buildHint('Masked key · environment aware'),
         _buildFieldRow('Trading pair', _selectedTradingPair.isEmpty ? 'Select symbol' : _selectedTradingPair, () => _showTradingPairSelector()),
-        _buildFieldRow('Preset', _selectedPreset, () => _showPresetSelector()),
+        _buildFieldRow('Preset', _getPresetName(_selectedPreset), () => _showPresetSelector()),
         _buildTwoColumnRow(
           'Bot capital',
           _botCapital.toStringAsFixed(0),
@@ -630,6 +630,19 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
     );
   }
 
+  String _getPresetName(int presetId) {
+    switch (presetId) {
+      case 0:
+        return 'Custom';
+      case 1:
+        return 'Conservative';
+      case 2:
+        return 'Aggressive';
+      default:
+        return 'Custom';
+    }
+  }
+
   Widget _buildErrorWidget() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -678,7 +691,7 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
   }
 
   Future<void> _createBot() async {
-    if (_selectedExchange.isEmpty || _selectedApiKey.isEmpty || _selectedTradingPair.isEmpty) {
+    if (_selectedExchange.isEmpty || _selectedApiKey == 0 || _selectedTradingPair.isEmpty) {
       setState(() {
         _error = 'Please fill in all required fields';
       });
@@ -691,10 +704,42 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
     });
 
     try {
+      // Debug logging
+      print('DEBUG: Creating bot with the following parameters:');
+      print('DEBUG: Exchange: $_selectedExchange');
+      print('DEBUG: API Key ID: $_selectedApiKey');
+      print('DEBUG: Trading Pair: $_selectedTradingPair');
+      print('DEBUG: Preset: $_selectedPreset');
+      print('DEBUG: Bot Capital: $_botCapital');
+      print('DEBUG: Initial Size %: $_initialSizePct');
+      print('DEBUG: Direction: $_direction');
+      print('DEBUG: Trigger Price: $_triggerPrice');
+      print('DEBUG: Take Profit %: $_takeProfitPct');
+      print('DEBUG: Net Profit %: $_netProfitPct');
+      print('DEBUG: Stop Loss %: $_stopLossPct');
+      print('DEBUG: Covers count: ${_covers.length}');
+
+      // Validate all numeric values are not null
+      if (_botCapital == null) {
+        throw Exception('Bot capital cannot be null');
+      }
+      if (_initialSizePct == null) {
+        throw Exception('Initial size percentage cannot be null');
+      }
+      if (_takeProfitPct == null) {
+        throw Exception('Take profit percentage cannot be null');
+      }
+      if (_netProfitPct == null) {
+        throw Exception('Net profit percentage cannot be null');
+      }
+      if (_stopLossPct == null) {
+        throw Exception('Stop loss percentage cannot be null');
+      }
+
       final request = CreateBotRequest(
         exchangeKeyId: _selectedApiKey,
         tradingPair: _selectedTradingPair,
-        preset: _selectedPreset.toLowerCase(),
+        preset: _selectedPreset,
         botDetails: BotDetails(
           assignedCapital: _botCapital,
           initialSizePct: _initialSizePct,
@@ -713,7 +758,11 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
         covers: _covers,
       );
 
+      print('DEBUG: Request JSON: ${request.toJson()}');
+
       final response = await UnifiedApiService.createBot(request);
+      
+      print('DEBUG: Bot created successfully: ${response.coin}');
       
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -724,9 +773,12 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('ERROR: Failed to create bot: $e');
+      print('ERROR: Stack trace: $stackTrace');
+      
       setState(() {
-        _error = e.toString();
+        _error = 'Failed to create bot: ${e.toString()}';
         _isLoading = false;
       });
     }
@@ -761,12 +813,15 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
         title: const Text('Select API Key'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: ['key_123abc', 'key_456def'].map((key) {
+          children: [
+            {'id': 1, 'name': 'Binance API Key 1'},
+            {'id': 2, 'name': 'Binance API Key 2'},
+          ].map((keyData) {
             return ListTile(
-              title: Text(key),
+              title: Text(keyData['name'] as String),
               subtitle: const Text('Masked key · environment aware'),
               onTap: () {
-                setState(() => _selectedApiKey = key);
+                setState(() => _selectedApiKey = keyData['id'] as int);
                 Navigator.of(context).pop();
               },
             );
@@ -804,11 +859,15 @@ class _CreateBotScreenState extends State<CreateBotScreen> {
         title: const Text('Select Preset'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: ['Custom', 'Conservative', 'Aggressive'].map((preset) {
+          children: [
+            {'id': 0, 'name': 'Custom'},
+            {'id': 1, 'name': 'Conservative'},
+            {'id': 2, 'name': 'Aggressive'},
+          ].map((presetData) {
             return ListTile(
-              title: Text(preset),
+              title: Text(presetData['name'] as String),
               onTap: () {
-                setState(() => _selectedPreset = preset);
+                setState(() => _selectedPreset = presetData['id'] as int);
                 Navigator.of(context).pop();
               },
             );

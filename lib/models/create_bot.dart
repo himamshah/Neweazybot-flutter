@@ -95,9 +95,9 @@ class Cover {
 }
 
 class CreateBotRequest {
-  final String exchangeKeyId;
+  final int exchangeKeyId;
   final String tradingPair;
-  final String preset;
+  final int preset;
   final BotDetails botDetails;
   final Configuration configuration;
   final Risk risk;
@@ -187,37 +187,67 @@ class CreateBotResponse {
 
   factory CreateBotResponse.fromJson(Map<String, dynamic> json) {
     return CreateBotResponse(
-      id: json['id'] as int,
-      status: json['status'] as String,
-      coin: json['coin'] as String,
-      exchange: json['exchange'] as String,
-      direction: json['direction'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      id: json['id'] as int? ?? 0,
+      status: json['status'] as String? ?? '',
+      coin: json['coin'] as String? ?? '',
+      exchange: json['exchange'] as String? ?? '',
+      direction: json['direction'] as String? ?? '',
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
       botDetails: BotDetails(
-        assignedCapital: (json['bot_details']['assigned_capital'] as num).toDouble(),
-        initialSizePct: (json['bot_details']['initial_size_pct'] as num).toDouble(),
+        assignedCapital: json['bot_details']?['assigned_capital'] != null 
+            ? (json['bot_details']['assigned_capital'] as num).toDouble() 
+            : 0.0,
+        initialSizePct: json['bot_details']?['initial_size_pct'] != null 
+            ? (json['bot_details']['initial_size_pct'] as num).toDouble() 
+            : 0.0,
       ),
       configuration: Configuration(
-        direction: json['configuration']['direction'] as String,
-        triggerPrice: json['configuration']['trigger_price'] != null 
+        direction: json['configuration']?['direction'] as String? ?? '',
+        triggerPrice: json['configuration']?['trigger_price'] != null 
             ? (json['configuration']['trigger_price'] as num).toDouble() 
             : null,
-        takeProfitPct: (json['configuration']['take_profit_pct'] as num).toDouble(),
-        cycleContinuous: json['configuration']['cycle_continuous'] as bool,
-        autoCompounding: json['configuration']['auto_compounding'] as bool,
+        takeProfitPct: json['configuration']?['take_profit_pct'] != null 
+            ? (json['configuration']['take_profit_pct'] as num).toDouble() 
+            : 0.0,
+        cycleContinuous: json['configuration']?['cycle_continuous'] as bool? ?? false,
+        autoCompounding: json['configuration']?['auto_compounding'] as bool? ?? false,
       ),
       risk: Risk(
-        netProfitPct: (json['risk']['net_profit_pct'] as num).toDouble(),
-        stopLossPct: (json['risk']['stop_loss_pct'] as num).toDouble(),
+        netProfitPct: json['risk']?['net_profit_pct'] != null 
+            ? (json['risk']['net_profit_pct'] as num).toDouble() 
+            : 0.0,
+        stopLossPct: json['risk']?['stop_loss_pct'] != null 
+            ? (json['risk']['stop_loss_pct'] as num).toDouble() 
+            : 0.0,
       ),
-      covers: (json['covers'] as List).map((cover) => Cover(
-        coverNumber: cover['cover_number'] as int,
-        dropdownPct: (cover['dropdown_pct'] as num).toDouble(),
-        takeProfitPct: (cover['take_profit_pct'] as num).toDouble(),
-        qtyMultiplier: (cover['qty_multiplier'] as num).toDouble(),
-        basePrice: cover['base_price'] as String,
-      )).toList(),
-      initialOrder: InitialOrder.fromJson(json['initial_order']),
+      covers: json['covers'] != null 
+          ? (json['covers'] as List).map((cover) => Cover(
+              coverNumber: cover['cover_number'] as int? ?? 0,
+              dropdownPct: cover['dropdown_pct'] != null 
+                  ? (cover['dropdown_pct'] as num).toDouble() 
+                  : 0.0,
+              takeProfitPct: cover['take_profit_pct'] != null 
+                  ? (cover['take_profit_pct'] as num).toDouble() 
+                  : 0.0,
+              qtyMultiplier: cover['qty_multiplier'] != null 
+                  ? (cover['qty_multiplier'] as num).toDouble() 
+                  : 1.0,
+              basePrice: cover['base_price'] as String? ?? 'previous_order',
+            )).toList()
+          : <Cover>[],
+      initialOrder: json['initial_order'] != null 
+        ? InitialOrder.fromJson(json['initial_order'])
+        : InitialOrder(
+            id: 0,
+            action: '',
+            price: null,
+            qty: null,
+            amount: 0.0,
+            fillStatus: 'pending',
+            createdAt: DateTime.now(),
+          ),
     );
   }
 }

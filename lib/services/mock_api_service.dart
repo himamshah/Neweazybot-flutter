@@ -497,7 +497,7 @@ class MockApiService {
     await Future.delayed(_delay);
 
     // Simulate validation
-    if (request.exchangeKeyId.isEmpty) {
+    if (request.exchangeKeyId == 0) {
       throw Exception('Exchange key not found or access denied.');
     }
     if (request.tradingPair.isEmpty) {
