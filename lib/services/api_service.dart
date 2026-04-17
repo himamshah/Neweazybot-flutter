@@ -5,6 +5,7 @@ import '../models/trade.dart';
 import '../models/trade_new.dart';
 import '../models/create_bot.dart';
 import '../models/profile.dart';
+import '../models/api_key.dart';
 import 'auth_service.dart';
 
 class ApiService {
@@ -244,6 +245,85 @@ class ApiService {
         final data = json.decode(response.body) as Map<String, dynamic>;
         print('API DEBUG: Change Password Parsed JSON data: $data');
         return data;
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      throw _handleException(e);
+    }
+  }
+
+  static Future<ApiKeysListResponse> getApiKeys() async {
+    try {
+      final headers = await _headers;
+      final uri = Uri.parse('$baseUrl/api/api-keys');
+      
+      print('API DEBUG: Get API Keys Request URL: $uri');
+      print('API DEBUG: Headers: $headers');
+      
+      final response = await http.get(uri, headers: headers).timeout(timeout);
+      
+      print('API DEBUG: Get API Keys Response status: ${response.statusCode}');
+      print('API DEBUG: Get API Keys Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        print('API DEBUG: Parsed API Keys JSON data: $data');
+        return ApiKeysListResponse.fromJson(data);
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      throw _handleException(e);
+    }
+  }
+
+  static Future<CreateApiKeyResponse> createApiKey(CreateApiKeyRequest request) async {
+    try {
+      final headers = await _headers;
+      final uri = Uri.parse('$baseUrl/api/api-keys');
+      
+      print('API DEBUG: Create API Key Request URL: $uri');
+      print('API DEBUG: Request body: ${request.toJson()}');
+      
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: json.encode(request.toJson()),
+      ).timeout(timeout);
+      
+      print('API DEBUG: Create API Key Response status: ${response.statusCode}');
+      print('API DEBUG: Create API Key Response body: ${response.body}');
+      
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        print('API DEBUG: Parsed Create API Key JSON data: $data');
+        return CreateApiKeyResponse.fromJson(data);
+      } else if (response.statusCode == 422) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        throw Exception(data['message'] ?? 'API key configuration is invalid.');
+      } else {
+        throw _handleError(response);
+      }
+    } catch (e) {
+      throw _handleException(e);
+    }
+  }
+
+  static Future<void> deleteApiKey(int apiKeyId) async {
+    try {
+      final headers = await _headers;
+      final uri = Uri.parse('$baseUrl/api/api-keys/$apiKeyId');
+      
+      print('API DEBUG: Delete API Key Request URL: $uri');
+      
+      final response = await http.delete(uri, headers: headers).timeout(timeout);
+      
+      print('API DEBUG: Delete API Key Response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('API DEBUG: API Key deleted successfully');
+        return;
       } else {
         throw _handleError(response);
       }

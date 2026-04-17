@@ -18,11 +18,13 @@ class BotsListScreen extends StatefulWidget {
 
 class _BotsListScreenState extends State<BotsListScreen> {
   List<Bot> bots = [];
+  List<Bot> filteredBots = [];
   bool isLoading = false;
   bool isLoadingMore = false;
   String error = '';
   String selectedFilter = 'all';
   String userName = '';
+  String searchQuery = '';
   
   // Pagination variables
   int currentPage = 0;
@@ -37,12 +39,26 @@ class _BotsListScreenState extends State<BotsListScreen> {
     'paused': 0,
     'closed': 0,
   };
+  
+  // Performance optimization: Cache for loaded data
+  Map<String, List<Bot>> _botsCache = {};
+  Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheExpiry = Duration(minutes: 5);
+  
+  // Search controller
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _loadBots();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserInfo() async {
@@ -55,7 +71,24 @@ class _BotsListScreenState extends State<BotsListScreen> {
   }
 
   
-  Future<void> _loadBots({bool isLoadMore = false}) async {
+  Future<void> _loadBots({bool isLoadMore = false, bool forceRefresh = false}) async {
+    final cacheKey = '${selectedFilter}_${currentPage}';
+    final now = DateTime.now();
+    
+    // Check cache first (only for initial load, not pagination)
+    if (!isLoadMore && !forceRefresh && _botsCache.containsKey(cacheKey)) {
+      final cacheTime = _cacheTimestamps[cacheKey] ?? DateTime.now();
+      if (now.difference(cacheTime) < _cacheExpiry) {
+        final cachedBots = _botsCache[cacheKey]!;
+        setState(() {
+          bots = cachedBots;
+          isLoading = false;
+          error = '';
+        });
+        return;
+      }
+    }
+
     if (isLoadMore) {
       setState(() {
         isLoadingMore = true;
@@ -64,33 +97,34 @@ class _BotsListScreenState extends State<BotsListScreen> {
       setState(() {
         isLoading = true;
         error = '';
-        currentPage = 0;
-        bots.clear();
+        if (!forceRefresh) {
+          currentPage = 0;
+          bots.clear();
+        }
       });
     }
 
     try {
-      print('DEBUG: Starting to load bots with filter: $selectedFilter');
-      print('DEBUG: Using mock data: ${UnifiedApiService.useMockData}');
-      print('DEBUG: Page: $currentPage, Offset: ${currentPage * pageSize}, Limit: $pageSize');
-      
       final response = await UnifiedApiService.getBots(
         status: selectedFilter,
         sortBy: 'created_at',
         sortOrder: 'desc',
         limit: pageSize,
         offset: currentPage * pageSize,
-      );
-      
-      print('DEBUG: Successfully loaded ${response.bots.length} bots');
-      print('DEBUG: Total bots: ${response.meta.total}, Has more: ${response.meta.hasMore}');
+      ).timeout(const Duration(seconds: 15)); // Add timeout
       
       setState(() {
         if (isLoadMore) {
           bots.addAll(response.bots);
         } else {
           bots = response.bots;
+          // Cache the results
+          _botsCache[cacheKey] = response.bots;
+          _cacheTimestamps[cacheKey] = now;
         }
+        
+        // Apply search filter
+        _filterBots();
         
         // Extract all filter counts from API response
         filterTotals['all'] = response.meta.allCount ?? 0;
@@ -104,13 +138,8 @@ class _BotsListScreenState extends State<BotsListScreen> {
         isLoadingMore = false;
       });
     } catch (e, stackTrace) {
-      print('ERROR: Failed to load bots: $e');
-      print('ERROR: Stack trace: $stackTrace');
-      print('ERROR: Error type: ${e.runtimeType}');
-      
       // Handle authentication errors
       if (e.toString().contains('Session expired') || e.toString().contains('Unauthenticated')) {
-        print('ERROR: Authentication error, redirecting to login');
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -177,38 +206,35 @@ class _BotsListScreenState extends State<BotsListScreen> {
           Row(
             children: [
               if (userName.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.bg3,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.border),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.person_outline,
-                        size: 16,
-                        color: AppTheme.text2,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        userName,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.text2,
-                          fontWeight: FontWeight.w500,
+                InkWell(
+                  onTap: _handleProfile,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.bg3,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          userName,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.text2,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               const SizedBox(width: 8),
-              _buildNavButton(Icons.search_outlined, false),
+              _buildNavButton(Icons.refresh, false, () => _loadBots(forceRefresh: true)),
+              const SizedBox(width: 8),
+              _buildNavButton(Icons.search_outlined, false, _showSearchDialog),
               const SizedBox(width: 8),
               _buildNavButton(Icons.add, true),
-              const SizedBox(width: 8),
-              _buildNavButton(Icons.person_outline, false, _handleProfile),
               const SizedBox(width: 8),
               _buildNavButton(Icons.logout_outlined, false, _handleLogout),
             ],
@@ -318,15 +344,29 @@ class _BotsListScreenState extends State<BotsListScreen> {
   }
 
   Widget _buildBody() {
-    if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppTheme.blue,
+    if (isLoading && bots.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: AppTheme.blue,
+              strokeWidth: 2,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading bots...',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.text2,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    if (error.isNotEmpty) {
+    if (error.isNotEmpty && bots.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -355,16 +395,30 @@ class _BotsListScreenState extends State<BotsListScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadBots,
-              child: const Text('Retry'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _loadBots,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Retry'),
+                ),
+                const SizedBox(width: 12),
+                TextButton(
+                  onPressed: () => _loadBots(forceRefresh: true),
+                  child: const Text('Force Refresh'),
+                ),
+              ],
             ),
           ],
         ),
       );
     }
 
-    if (bots.isEmpty) {
+    if (filteredBots.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -392,46 +446,105 @@ class _BotsListScreenState extends State<BotsListScreen> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _navigateToCreateBot,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Create Bot'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
           ],
         ),
       );
     }
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (scrollInfo) {
-        if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent && 
-            !isLoadingMore && 
-            hasMore) {
-          _loadMoreBots();
-        }
-        return false;
-      },
-      child: ListView.separated(
-        padding: const EdgeInsets.all(14),
-        itemCount: bots.length + (hasMore ? 1 : 0),
-        separatorBuilder: (context, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          if (index == bots.length && hasMore) {
-            // Show loading indicator at the bottom
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(
-                  color: AppTheme.blue,
+    return Column(
+      children: [
+        if (isLoading && filteredBots.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: AppTheme.blue,
+                    strokeWidth: 2,
+                  ),
                 ),
-              ),
-            );
-          }
-          
-          final bot = bots[index];
-          return BotCard(
-            bot: bot,
-            onViewTrades: () => _navigateToBotTrades(bot),
-            onRestart: bot.status == 'stopped' ? () => _restartBot(bot) : null,
-            onSettings: () => _showBotSettings(bot),
-          );
-        },
-      ),
+                const SizedBox(width: 8),
+                Text(
+                  'Refreshing...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.text2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (scrollInfo) {
+              if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent && 
+                  !isLoadingMore && 
+                  hasMore) {
+                _loadMoreBots();
+              }
+              return false;
+            },
+            child: ListView.separated(
+              padding: const EdgeInsets.all(14),
+              itemCount: filteredBots.length + (hasMore ? 1 : 0),
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                if (index == filteredBots.length && hasMore) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              color: AppTheme.blue,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Loading more...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.text2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
+                final bot = filteredBots[index];
+                return BotCard(
+                  bot: bot,
+                  onViewTrades: () => _navigateToBotTrades(bot),
+                  onRestart: bot.status == 'stopped' ? () => _restartBot(bot) : null,
+                  onSettings: () => _showBotSettings(bot),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -455,35 +568,63 @@ class _BotsListScreenState extends State<BotsListScreen> {
 
   Widget _buildTabItem(IconData icon, String label, bool isActive) {
     return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: isActive ? AppTheme.blue : AppTheme.text3,
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
+      child: InkWell(
+        onTap: () => _handleTabNavigation(label),
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
               color: isActive ? AppTheme.blue : AppTheme.text3,
             ),
-          ),
-          if (isActive)
-            Container(
-              width: 4,
-              height: 4,
-              margin: const EdgeInsets.only(top: 1),
-              decoration: BoxDecoration(
-                color: AppTheme.blue,
-                borderRadius: BorderRadius.circular(2),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: isActive ? AppTheme.blue : AppTheme.text3,
               ),
             ),
-        ],
+            if (isActive)
+              Container(
+                width: 4,
+                height: 4,
+                margin: const EdgeInsets.only(top: 1),
+                decoration: BoxDecoration(
+                  color: AppTheme.blue,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _handleTabNavigation(String tabLabel) {
+    switch (tabLabel) {
+      case 'Dashboard':
+        // Navigate to Dashboard (could be the same screen or a separate one)
+        // For now, we'll stay on the current screen as it's the main dashboard
+        break;
+      case 'Bots':
+        // Already on Bots screen, no navigation needed
+        break;
+      case 'Trades':
+        // Navigate to Trades screen (to be implemented)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Trades screen coming soon!'),
+            backgroundColor: AppTheme.blue,
+          ),
+        );
+        break;
+      case 'Account':
+        _handleProfile();
+        break;
+    }
   }
 
   void _navigateToCreateBot() {
@@ -508,6 +649,53 @@ class _BotsListScreenState extends State<BotsListScreen> {
       SnackBar(
         content: Text('Restarting bot ${bot.coin}...'),
         backgroundColor: AppTheme.green,
+      ),
+    );
+  }
+
+  void _filterBots() {
+    setState(() {
+      if (searchQuery.isEmpty) {
+        filteredBots = List.from(bots);
+      } else {
+        filteredBots = bots.where((bot) =>
+          bot.coin.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          bot.exchange.toLowerCase().contains(searchQuery.toLowerCase()) ||
+          bot.direction.toLowerCase().contains(searchQuery.toLowerCase())
+        ).toList();
+      }
+    });
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Search Bots'),
+        content: TextField(
+          controller: _searchController,
+          decoration: const InputDecoration(
+            hintText: 'Enter bot name or strategy...',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                searchQuery = _searchController.text;
+              });
+              _filterBots();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Search'),
+          ),
+        ],
       ),
     );
   }

@@ -34,11 +34,19 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../keystore/release-key.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "tradebot123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "tradebot"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "tradebot123"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Configure release build with proper signing
+            signingConfig = signingConfigs.getByName("release")
             
             // Enable code shrinking to allow resource shrinking
             isMinifyEnabled = true
@@ -46,6 +54,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            
+            // Set custom APK name
+            archivesBaseName = "TradeBot"
         }
     }
 }

@@ -29,30 +29,14 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF08090B),
       body: SafeArea(
-        child: Center(
-          child: Container(
-            width: 390,
-            decoration: BoxDecoration(
-              color: const Color(0xFF08090B),
-              borderRadius: BorderRadius.circular(44),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.5),
-                  blurRadius: 80,
-                  offset: const Offset(0, 20),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildHero(),
-                _buildLoginForm(),
-                _buildDivider(),
-                _buildSignInRow(),
-              ],
-            ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHero(),
+              _buildLoginForm(),
+              _buildDivider(),
+              _buildSignInRow(),
+            ],
           ),
         ),
       ),

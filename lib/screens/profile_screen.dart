@@ -4,6 +4,7 @@ import '../services/unified_api_service.dart';
 import '../models/profile.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'api_keys_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -64,35 +65,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bg,
       body: SafeArea(
-        child: Center(
-          child: Container(
-            width: 390,
-            decoration: BoxDecoration(
-              color: AppTheme.bg,
-              borderRadius: BorderRadius.circular(44),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Column(
-              children: [
-                _buildNavBar(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        if (_isLoading)
-                          _buildLoadingState()
-                        else if (_error != null)
-                          _buildErrorState()
-                        else if (_profileData != null)
-                          _buildProfileContent(),
-                      ],
-                    ),
-                  ),
+        child: Column(
+          children: [
+            _buildNavBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    if (_isLoading)
+                      _buildLoadingState()
+                    else if (_error != null)
+                      _buildErrorState()
+                    else if (_profileData != null)
+                      _buildProfileContent(),
+                  ],
                 ),
-                _buildTabBar(),
-              ],
+              ),
             ),
-          ),
+            _buildTabBar(),
+          ],
         ),
       ),
     );
@@ -107,8 +98,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(
+              Icons.arrow_back,
+              size: 16,
+              color: AppTheme.blue,
+            ),
+            label: const Text(
+              'Back',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.blue,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Spacer(),
           const Text(
             'Account',
             style: TextStyle(
@@ -118,6 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               letterSpacing: -0.3,
             ),
           ),
+          const Spacer(),
           GestureDetector(
             onTap: _handleLogout,
             child: Container(
@@ -204,6 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildStatsRow(profile.stats),
         const SizedBox(height: 14),
         _buildProfileSection(profile.profileInfo),
+        const SizedBox(height: 12),
+        _buildApiKeysSection(),
         const SizedBox(height: 12),
         _buildPasswordSection(),
         const SizedBox(height: 12),
@@ -393,6 +403,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildFieldRow('Role', profileInfo.role, roleColor: true),
           _buildFieldRow('User ID', '#${profileInfo.userId}', isMono: true, isMuted: true),
           _buildFieldRow('Last login', profileInfo.lastLogin, isMuted: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApiKeysSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.bg2,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        children: [
+          _buildSectionHeader('API Keys', Icons.vpn_key_outlined),
+          Padding(
+            padding: const EdgeInsets.all(13),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Manage API keys',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.text,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Add and manage exchange API keys',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.text3,
+                      ),
+                    ),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const ApiKeysScreen()),
+                    );
+                  },
+                  child: const Icon(
+                    Icons.chevron_right,
+                    color: AppTheme.blue,
+                    size: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
