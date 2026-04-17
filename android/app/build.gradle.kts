@@ -56,7 +56,7 @@ android {
             )
             
             // Set custom APK name
-            archivesBaseName = "TradeBot"
+            setProperty("archivesBaseName", "TradeBot")
         }
     }
 }
