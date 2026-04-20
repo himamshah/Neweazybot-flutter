@@ -217,12 +217,16 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
             ),
           ),
           const Spacer(),
-          const Text(
-            'Exchange API keys',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.text,
+          Expanded(
+            child: Text(
+              'Exchange API keys',
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.text,
+              ),
             ),
           ),
           const Spacer(),
@@ -730,40 +734,52 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
+        color: AppTheme.bg2,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 3,
-            decoration: BoxDecoration(
-              color: apiKey.isActive ? AppTheme.green : AppTheme.text3,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.bg2,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            // Left colored border indicator - curved and status-based
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 3,
+                decoration: BoxDecoration(
+                  color: apiKey.isActive ? const Color(0xFF00E676) : AppTheme.text3,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
                 ),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: Column(
-                children: [
-                  _buildKeyHeader(apiKey),
-                  _buildKeyBody(apiKey),
-                  _buildKeyFooter(apiKey),
-                ],
               ),
             ),
-          ),
-        ],
+            // Content
+            Padding(
+              padding: const EdgeInsets.only(left: 6, top: 1, right: 1, bottom: 1),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.bg2,
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(15),
+                    bottomRight: Radius.circular(15),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    _buildKeyHeader(apiKey),
+                    _buildKeyBody(apiKey),
+                    _buildKeyFooter(apiKey),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -860,6 +876,7 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
         _buildPermissions(),
         _buildKeyRow('API key', apiKey.maskedKey, apiKey.maskedKey),
         _buildKeyRow('Environment', apiKey.environment, null),
+        _buildKeyRow('Bots using this key', '3 active', null),
         _buildKeyRow('Added', _formatDate(apiKey.createdAt), null),
       ],
     );
@@ -867,11 +884,13 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
 
   Widget _buildPermissions() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Wrap(
+        alignment: WrapAlignment.start,
         spacing: 6,
         children: [
           _buildPermissionTag('Read', AppTheme.blueDim, AppTheme.blue),
@@ -954,7 +973,7 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
               value,
               style: TextStyle(
                 fontSize: 12,
-                color: value == 'LIVE' ? AppTheme.green : AppTheme.amber,
+                color: value == 'LIVE' ? AppTheme.green : AppTheme.text2,
                 fontFamily: 'monospace',
               ),
             ),
@@ -965,7 +984,7 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
 
   Widget _buildKeyFooter(ApiKey apiKey) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.bg3,
         borderRadius: const BorderRadius.only(
@@ -976,58 +995,61 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
       child: Row(
         children: [
           Expanded(
-            child: TextButton(
+            child: ElevatedButton(
               onPressed: () => _showError('Test connection not implemented'),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.all(8),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 side: const BorderSide(color: AppTheme.border2),
                 backgroundColor: AppTheme.bg4,
                 foregroundColor: AppTheme.text2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
+                elevation: 0,
               ),
               child: const Text(
                 'Test connection',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: 8),
           Expanded(
-            child: TextButton(
+            child: ElevatedButton(
               onPressed: () => _showError('Edit label not implemented'),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.all(8),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 side: const BorderSide(color: AppTheme.border2),
                 backgroundColor: AppTheme.bg4,
                 foregroundColor: AppTheme.text2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
+                elevation: 0,
               ),
               child: const Text(
                 'Edit label',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: 8),
           Expanded(
-            child: TextButton(
+            child: ElevatedButton(
               onPressed: () => _deleteApiKey(apiKey.id),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.all(8),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 side: BorderSide(color: AppTheme.red.withOpacity(0.2)),
                 backgroundColor: AppTheme.redDim,
                 foregroundColor: AppTheme.red,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
+                elevation: 0,
               ),
               child: const Text(
                 'Delete',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ),
           ),

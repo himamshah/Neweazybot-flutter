@@ -208,15 +208,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       children: [
         _buildAvatarSection(profile),
-        const SizedBox(height: 14),
+        const SizedBox(height: 4),
         _buildStatsRow(profile.stats),
-        const SizedBox(height: 14),
+        const SizedBox(height: 4),
         _buildProfileSection(profile.profileInfo),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         _buildApiKeysSection(),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         _buildPasswordSection(),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         _buildDangerZone(),
         const SizedBox(height: 4),
       ],
@@ -225,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildAvatarSection(ProfileData profile) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(28, 20, 20, 20),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
@@ -234,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           // Radial glow behind avatar
           Container(
-            height: 100,
+            height: 50,
             decoration: BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.center,
@@ -330,6 +330,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildStatsRow(ProfileStats stats) {
     return Container(
+      margin: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: BorderRadius.circular(16),
@@ -390,6 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildProfileSection(ProfileInfo profileInfo) {
     return Container(
+      margin: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: BorderRadius.circular(16),
@@ -410,6 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildApiKeysSection() {
     return Container(
+      margin: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: BorderRadius.circular(16),
@@ -466,6 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildPasswordSection() {
     return Container(
+      margin: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: BorderRadius.circular(16),
@@ -674,6 +678,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildDangerZone() {
     return Container(
+      margin: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
         borderRadius: BorderRadius.circular(16),

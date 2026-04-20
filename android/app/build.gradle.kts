@@ -36,10 +36,17 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../keystore/release-key.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "tradebot123"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "tradebot"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "tradebot123"
+            storeFile = file("../keystore/tradebot-release.jks")
+            storePassword = "tradebot123"
+            keyAlias = "tradebot"
+            keyPassword = "tradebot123"
+        }
+        getByName("debug") {
+            // Use the same keystore for debug to ensure consistency
+            storeFile = file("../keystore/tradebot-release.jks")
+            storePassword = "tradebot123"
+            keyAlias = "tradebot"
+            keyPassword = "tradebot123"
         }
     }
 

@@ -4,6 +4,8 @@ import '../models/bot.dart';
 import '../models/trade.dart';
 import '../services/unified_api_service.dart';
 import '../utils/app_theme.dart';
+import '../widgets/bot_card.dart';
+import '../widgets/simple_bot_info.dart';
 
 class BotDetailsScreen extends StatefulWidget {
   final Bot bot;
@@ -192,21 +194,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   Widget _buildSummaryHeader() {
     final bot = botDetail ?? widget.bot;
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.bg2,
-        border: Border(bottom: BorderSide(color: AppTheme.border)),
-      ),
-      child: Column(
-        children: [
-          _buildHeaderTop(),
-          _buildPnLGrid(),
-          _buildPriceGrid(),
-          if (bot.status == 'running') _buildLiquidationBar(),
-          _buildCapitalGrid(),
-        ],
-      ),
-    );
+    return SimpleBotInfo(bot: bot);
   }
 
   Widget _buildHeaderTop() {
@@ -593,43 +581,48 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
 
   Widget _buildFilterBar() {
     final filters = ['All', 'Open', 'Closed', 'Cancelled'];
-    
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
       decoration: const BoxDecoration(
         color: AppTheme.bg2,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
+      child: Center(
+        child: Wrap(
+          spacing: 8,
           children: filters.map((filter) {
             final filterValue = filter.toLowerCase();
             final isActive = selectedFilter == filterValue;
             
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(filter),
-                selected: isActive,
-                onSelected: (selected) {
-                  if (selected) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isActive ? AppTheme.blueDim : AppTheme.bg3,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
                     setState(() {
                       selectedFilter = filterValue;
                     });
                     _loadBotDetails();
-                  }
-                },
-                backgroundColor: AppTheme.bg3,
-                selectedColor: AppTheme.blueDim,
-                labelStyle: TextStyle(
-                  color: isActive ? AppTheme.blue : AppTheme.text3,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Text(
+                      filter,
+                      style: TextStyle(
+                        color: isActive ? AppTheme.blue : AppTheme.text2,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ),
-                side: const BorderSide(color: AppTheme.border),
-                pressElevation: 0,
-                checkmarkColor: AppTheme.blue,
               ),
             );
           }).toList(),
@@ -754,19 +747,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date header
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                date,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.text,
-                  letterSpacing: -0.3,
-                ),
-              ),
-            ),
             // Trades for this date
             ...dateTrades.map((trade) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -862,19 +842,36 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     final isExpanded = expandedTrades.contains(trade.groupId);
     
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: AppTheme.bg2,
-        border: Border(
-          top: BorderSide(color: AppTheme.border),
-          right: BorderSide(color: AppTheme.border),
-          bottom: BorderSide(color: AppTheme.border),
-          left: BorderSide(
-            color: borderColor,
-            width: 3,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+        border: Border.all(color: AppTheme.border),
       ),
-      child: Column(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+        child: Stack(
+          children: [
+            // Left colored border indicator - curved and thicker
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 3,
+                decoration: BoxDecoration(
+                  color: borderColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(AppTheme.radius),
+                    bottomLeft: Radius.circular(AppTheme.radius),
+                  ),
+                ),
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 2, right: 2, bottom: 2),
+              child: Column(
         children: [
           // Main trade info
           InkWell(
@@ -890,7 +887,7 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
               }
             },
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   // Trade number
@@ -1056,6 +1053,10 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
           if (isExpanded && trade.closeTrade != null)
             _buildCloseTradeDetails(trade),
         ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
     } catch (e, stackTrace) {

@@ -2,98 +2,98 @@ import 'package:flutter/material.dart';
 import '../models/bot.dart';
 import '../utils/app_theme.dart';
 
-class BotCard extends StatelessWidget {
+class SimpleBotInfo extends StatelessWidget {
   final Bot bot;
-  final VoidCallback? onViewTrades;
-  final VoidCallback? onRestart;
-  final VoidCallback? onSettings;
-  final VoidCallback? onTap;
-  final bool statusOnLeft;
 
-  const BotCard({
+  const SimpleBotInfo({
     Key? key,
     required this.bot,
-    this.onViewTrades,
-    this.onRestart,
-    this.onSettings,
-    this.onTap,
-    this.statusOnLeft = false,
   }) : super(key: key);
+
+  Color _getStatusColor() {
+    switch (bot.status.toLowerCase()) {
+      case 'running':
+        return const Color(0xFF00E676); // Brighter, more vibrant green
+      case 'paused':
+        return AppTheme.amber;
+      case 'closed':
+        return AppTheme.text3;
+      default:
+        return AppTheme.text3;
+    }
+  }
+
+  Widget _buildStatusPill() {
+    String statusText;
+    Color statusColor;
+    Color bgColor;
+    
+    switch (bot.status.toLowerCase()) {
+      case 'running':
+        statusText = 'Running';
+        statusColor = const Color(0xFF00E676);
+        bgColor = const Color(0x1F00E676);
+        break;
+      case 'paused':
+        statusText = 'Paused';
+        statusColor = AppTheme.amber;
+        bgColor = const Color(0x1DFFB547);
+        break;
+      case 'closed':
+        statusText = 'Closed';
+        statusColor = AppTheme.text3;
+        bgColor = const Color(0x0DFFFFFF);
+        break;
+      default:
+        statusText = 'Unknown';
+        statusColor = AppTheme.text3;
+        bgColor = const Color(0x0DFFFFFF);
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            statusText,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: statusColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bg2,
-            borderRadius: BorderRadius.circular(AppTheme.radius),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Stack(
-            children: [
-              // Main content
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.bg2,
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  child: Stack(
-                    children: [
-                      // Left colored border indicator - integrated with card
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 3,
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(AppTheme.radius),
-                              bottomLeft: Radius.circular(AppTheme.radius),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Content
-                      Padding(
-                        padding: const EdgeInsets.only(left: 10, top: 1, right: 1, bottom: 1),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppTheme.bg2,
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(AppTheme.radius - 1),
-                              bottomRight: Radius.circular(AppTheme.radius - 1),
-                            ),
-                          ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildHeader(),
-                      _buildPnLRow(),
-                      _buildPriceRow(),
-                      if (bot.status == 'running') _buildLiquidationBar(),
-                      _buildCapitalRow(),
-                      _buildCoverSection(),
-                      _buildFooter(),
-                    ],
-                  ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+    return Container(
+      color: AppTheme.bg2,
+      child: Column(
+        children: [
+          _buildHeader(),
+          _buildPnLRow(),
+          _buildPriceRow(),
+          if (bot.status == 'running') _buildLiquidationBar(),
+          _buildCapitalRow(),
+          _buildCoverSection(),
+        ],
       ),
     );
   }
@@ -106,10 +106,6 @@ class BotCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (statusOnLeft) ...[
-            _buildStatusPill(),
-            const SizedBox(width: 10),
-          ],
           Row(
             children: [
               Container(
@@ -157,65 +153,7 @@ class BotCard extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          if (!statusOnLeft) _buildStatusPill(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusPill() {
-    String statusText;
-    Color statusColor;
-    Color bgColor;
-    
-    switch (bot.status.toLowerCase()) {
-      case 'running':
-        statusText = 'Running';
-        statusColor = AppTheme.green;
-        bgColor = AppTheme.greenDim;
-        break;
-      case 'paused':
-        statusText = 'Paused';
-        statusColor = AppTheme.amber;
-        bgColor = const Color(0x1DFFB547);
-        break;
-      case 'closed':
-        statusText = 'Closed';
-        statusColor = AppTheme.text3;
-        bgColor = const Color(0x0DFFFFFF);
-        break;
-      default:
-        statusText = 'Unknown';
-        statusColor = AppTheme.text3;
-        bgColor = const Color(0x0DFFFFFF);
-    }
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            statusText,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: statusColor,
-            ),
-          ),
+          _buildStatusPill(),
         ],
       ),
     );
@@ -566,74 +504,5 @@ class BotCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        border: const Border(top: BorderSide(color: AppTheme.border)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: onViewTrades,
-              child: const Text('View trades'),
-            ),
-          ),
-          const SizedBox(width: 7),
-          _buildIconButton(Icons.settings_outlined, onSettings),
-          const SizedBox(width: 7),
-          _buildIconButton(Icons.refresh_outlined, null),
-          const SizedBox(width: 7),
-          _buildIconButton(Icons.more_vert, null),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconButton(IconData icon, VoidCallback? onPressed) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: AppTheme.bg4,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        border: Border.all(color: AppTheme.border2),
-      ),
-      child: IconButton(
-        icon: Icon(icon, size: 12),
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        color: AppTheme.text2,
-      ),
-    );
-  }
-
-  Color _getStatusColor() {
-    switch (bot.status.toLowerCase()) {
-      case 'running':
-        return const Color(0xFF00E676); // Brighter, more vibrant green
-      case 'paused':
-        return AppTheme.amber;
-      case 'closed':
-        return AppTheme.text3;
-      default:
-        return AppTheme.text3;
-    }
-  }
-
-  String _getDaysAgo(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    if (difference.inDays > 0) {
-      return '${difference.inDays}D ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}H ago';
-    } else {
-      return '${difference.inMinutes}M ago';
-    }
   }
 }

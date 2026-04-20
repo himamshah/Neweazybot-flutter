@@ -34,7 +34,7 @@ class OpenTrade {
       action: json['action'] as String,
       description: json['description'] as String,
       price: (json['price'] as num).toDouble(),
-      qty: json['qty'] as int,
+      qty: (json['qty'] as num).toInt(),
       amount: (json['amount'] as num).toDouble(),
       commission: (json['commission'] as num).toDouble(),
       fillStatus: json['status'] as String? ?? '',
@@ -78,7 +78,7 @@ class CloseTrade {
       action: json['action'] as String,
       description: json['description'] as String,
       price: (json['price'] as num).toDouble(),
-      qty: json['qty'] as int,
+      qty: (json['qty'] as num).toInt(),
       amount: (json['amount'] as num).toDouble(),
       commission: (json['commission'] as num).toDouble(),
       fillStatus: json['status'] as String? ?? '',
@@ -134,15 +134,15 @@ class Trade {
     print('DEBUG: Parsing Trade from JSON: $json');
     try {
       final trade = Trade(
-        groupId: json['group_id'] as int,
-        coverId: json['cover_id'] as int,
+        groupId: (json['group_id'] as num).toInt(),
+        coverId: (json['cover_id'] as num).toInt(),
         coverLabel: json['cover_label'] as String,
         status: json['status'] as String,
         openTrade: json['open_trade'] != null ? OpenTrade.fromJson(json['open_trade']) : null,
         closeTrade: json['close_trade'] != null ? CloseTrade.fromJson(json['close_trade']) : null,
         profit: json['profit'] != null ? (json['profit'] as num).toDouble() : null,
         profitPct: json['profit_pct'] != null ? (json['profit_pct'] as num).toDouble() : null,
-        holdDurationSeconds: json['hold_duration_seconds'] as int?,
+        holdDurationSeconds: json['hold_duration_seconds'] != null ? (json['hold_duration_seconds'] as num).toInt() : null,
         pendingTp: json['pending_tp'] != null ? PendingTp.fromJson(json['pending_tp']) : null,
       );
       print('DEBUG: Successfully parsed Trade ${trade.groupId} - ${trade.coverLabel}');
@@ -187,13 +187,13 @@ class TradesMeta {
 
   factory TradesMeta.fromJson(Map<String, dynamic> json) {
     return TradesMeta(
-      total: json['total'] as int,
-      limit: json['limit'] as int,
-      offset: json['offset'] as int,
+      total: (json['total'] as num).toInt(),
+      limit: (json['limit'] as num).toInt(),
+      offset: (json['offset'] as num).toInt(),
       hasMore: json['has_more'] as bool,
       totalProfit: (json['total_profit'] as num).toDouble(),
-      closedCount: json['closed_count'] as int,
-      activeCoverId: json['active_cover_id'] as int?,
+      closedCount: (json['closed_count'] as num).toInt(),
+      activeCoverId: json['active_cover_id'] != null ? (json['active_cover_id'] as num).toInt() : null,
     );
   }
 }

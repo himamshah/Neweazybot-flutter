@@ -300,9 +300,9 @@ class _BotsListScreenState extends State<BotsListScreen> {
         color: AppTheme.bg2,
         border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
+      child: Center(
+        child: Wrap(
+          spacing: 8,
           children: filters.map((filter) {
             final isActive = selectedFilter == filter['value'];
             
@@ -312,29 +312,34 @@ class _BotsListScreenState extends State<BotsListScreen> {
             // Debug logging for counters
             print('COUNTER DEBUG: Filter ${filter['label']} (${filter['value']}) count: $displayCount (loaded: ${bots.length}, current filter total: $totalCount)');
             
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text('${filter['label']} ($displayCount)'),
-                selected: isActive,
-                onSelected: (selected) {
-                  if (selected) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isActive ? AppTheme.blueDim : AppTheme.bg3,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
                     setState(() {
                       selectedFilter = filter['value']!;
                     });
                     _loadBots();
-                  }
-                },
-                backgroundColor: AppTheme.bg3,
-                selectedColor: AppTheme.blueDim,
-                labelStyle: TextStyle(
-                  color: isActive ? AppTheme.blue : AppTheme.text2,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Text(
+                      '${filter['label']} ($displayCount)',
+                      style: TextStyle(
+                        color: isActive ? AppTheme.blue : AppTheme.text2,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ),
-                side: const BorderSide(color: AppTheme.border),
-                pressElevation: 0,
-                checkmarkColor: AppTheme.blue,
               ),
             );
           }).toList(),
@@ -539,6 +544,7 @@ class _BotsListScreenState extends State<BotsListScreen> {
                   onViewTrades: () => _navigateToBotTrades(bot),
                   onRestart: bot.status == 'stopped' ? () => _restartBot(bot) : null,
                   onSettings: () => _showBotSettings(bot),
+                  onTap: () => _navigateToBotTrades(bot),
                 );
               },
             ),
