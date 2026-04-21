@@ -494,15 +494,19 @@ class BotCard extends StatelessWidget {
           if (bot.covers.lastCover != null)
             _buildCoverItem(
               'LAST',
-              'BUY',
-              'C${bot.covers.lastCover!.buyCoverId ?? 'N/A'} · ${bot.covers.lastCover!.buyCoverDetail ?? 'N/A'}',
+              bot.direction.toLowerCase() == 'short' ? 'SELL' : 'BUY',
+              bot.direction.toLowerCase() == 'short' 
+                ? '${bot.covers.lastCover!.sellCoverDetail ?? 'N/A'}'
+                : '${bot.covers.lastCover!.buyCoverDetail ?? 'N/A'}',
               '~\$${bot.covers.lastCover!.estimatedAmount?.toInt() ?? 0}',
             ),
           if (bot.covers.nextCover != null)
             _buildCoverItem(
               'NEXT',
-              'BUY',
-              'C${bot.covers.nextCover!.buyCoverId ?? 'N/A'} @ ${bot.covers.nextCover!.triggerPrice != null ? AppTheme.formatPrice(bot.covers.nextCover!.triggerPrice!) : 'N/A'}',
+              bot.direction.toLowerCase() == 'short' ? 'SELL' : 'BUY',
+              bot.direction.toLowerCase() == 'short'
+                ? '${bot.covers.nextCover!.buyCoverDetail ?? 'N/A'}'
+                : '${bot.covers.nextCover!.sellCoverDetail ?? 'N/A'}',
               '~\$${bot.covers.nextCover!.estimatedAmount?.toInt() ?? 0}',
             ),
         ],

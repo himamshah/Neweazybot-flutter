@@ -82,6 +82,16 @@ class _BotsListScreenState extends State<BotsListScreen> {
         final cachedBots = _botsCache[cacheKey]!;
         setState(() {
           bots = cachedBots;
+          // Apply search filter only if search query exists
+          if (searchQuery.isNotEmpty) {
+            filteredBots = cachedBots.where((bot) =>
+              bot.coin.toLowerCase().contains(searchQuery.toLowerCase()) ||
+              bot.exchange.toLowerCase().contains(searchQuery.toLowerCase()) ||
+              bot.direction.toLowerCase().contains(searchQuery.toLowerCase())
+            ).toList();
+          } else {
+            filteredBots = List.from(cachedBots);
+          }
           isLoading = false;
           error = '';
         });
@@ -123,8 +133,12 @@ class _BotsListScreenState extends State<BotsListScreen> {
           _cacheTimestamps[cacheKey] = now;
         }
         
-        // Apply search filter
-        _filterBots();
+        // Apply search filter only if search query exists
+        if (searchQuery.isNotEmpty) {
+          _filterBots();
+        } else {
+          filteredBots = List.from(bots);
+        }
         
         // Extract all filter counts from API response
         filterTotals['all'] = response.meta.allCount ?? 0;
@@ -322,10 +336,15 @@ class _BotsListScreenState extends State<BotsListScreen> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
+                    final previousFilter = selectedFilter;
                     setState(() {
                       selectedFilter = filter['value']!;
+                      // Clear search query when switching filters to prevent interference
+                      searchQuery = '';
+                      _searchController.clear();
                     });
-                    _loadBots();
+                    // Force refresh when filter changes to ensure fresh data
+                    _loadBots(forceRefresh: previousFilter != filter['value']);
                   },
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
