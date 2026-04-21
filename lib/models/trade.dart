@@ -130,8 +130,10 @@ class Trade {
     this.pendingTp,
   });
 
+  // Add id getter for compatibility
+  int get id => groupId;
+
   factory Trade.fromJson(Map<String, dynamic> json) {
-    print('DEBUG: Parsing Trade from JSON: $json');
     try {
       final trade = Trade(
         groupId: (json['group_id'] as num).toInt(),
@@ -145,11 +147,8 @@ class Trade {
         holdDurationSeconds: json['hold_duration_seconds'] != null ? (json['hold_duration_seconds'] as num).toInt() : null,
         pendingTp: json['pending_tp'] != null ? PendingTp.fromJson(json['pending_tp']) : null,
       );
-      print('DEBUG: Successfully parsed Trade ${trade.groupId} - ${trade.coverLabel}');
       return trade;
     } catch (e, stackTrace) {
-      print('ERROR: Failed to parse Trade: $e');
-      print('ERROR: Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -210,20 +209,14 @@ class BotDetailResponse {
   });
 
   factory BotDetailResponse.fromJson(Map<String, dynamic> json) {
-    print('DEBUG: Parsing BotDetailResponse from JSON');
-    print('DEBUG: Trades data type: ${json['trades'].runtimeType}');
-    print('DEBUG: Trades data: ${json['trades']}');
     try {
       final response = BotDetailResponse(
         bot: Bot.fromJson(json['bot']),
         tradesMeta: TradesMeta.fromJson(json['trades_meta']),
         trades: (json['trades'] as List).map((trade) => Trade.fromJson(trade)).toList(),
       );
-      print('DEBUG: Successfully parsed BotDetailResponse with ${response.trades.length} trades');
       return response;
     } catch (e, stackTrace) {
-      print('ERROR: Failed to parse BotDetailResponse: $e');
-      print('ERROR: Stack trace: $stackTrace');
       rethrow;
     }
   }

@@ -31,14 +31,27 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   bool hasMore = false;
   List<Trade> trades = [];
   
+  // Performance optimizations
+  Map<String, List<Trade>>? _cachedGroupedTrades;
+  List<String>? _cachedSortedDates;
+  String? _lastTradesHash;
+  
+  // Filter optimization
+  bool _isFilterLoading = false;
+  String? _pendingFilter;
+  DateTime? _lastFilterChange;
+  
   @override
   void initState() {
     super.initState();
+    // Clear cache to ensure fresh bot details data
+    UnifiedApiService.clearCache();
     _loadBotDetails();
   }
 
   Future<void> _loadBotDetails({bool isLoadMore = false}) async {
-    print('DEBUG: _loadBotDetails called for bot ${widget.bot.id}');
+    if (!mounted) return;
+    
     if (isLoadMore) {
       setState(() {
         isLoadingMore = true;
@@ -49,6 +62,11 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         error = '';
         currentPage = 1;
         trades.clear();
+        // Clear cache when loading fresh data
+        _cachedGroupedTrades = null;
+        _cachedSortedDates = null;
+        _lastTradesHash = null;
+        _isFilterLoading = false;
       });
     }
 
@@ -60,44 +78,32 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
         offset: (currentPage - 1) * 20,
       );
       
-      setState(() {
-        botDetail = response.bot;
-        tradesMeta = response.tradesMeta;
-        
-        print('DEBUG: Bot ID: ${widget.bot.id}');
-        print('DEBUG: Trades count: ${response.trades.length}');
-        print('DEBUG: Trades data: ${response.trades}');
-        
-        for (int i = 0; i < response.trades.length; i++) {
-          final trade = response.trades[i];
-          print('DEBUG: Trade $i - group_id: ${trade.groupId}');
-          print('DEBUG: Trade $i - status: ${trade.status}');
-          print('DEBUG: Trade $i - open_trade: ${trade.openTrade}');
-          print('DEBUG: Trade $i - close_trade: ${trade.closeTrade}');
-          if (trade.openTrade != null) {
-            print('DEBUG: Trade $i - open_trade status: ${trade.openTrade!.fillStatus}');
+      if (mounted) {
+        setState(() {
+          botDetail = response.bot;
+          tradesMeta = response.tradesMeta;
+          
+          if (isLoadMore) {
+            trades.addAll(response.trades);
+          } else {
+            trades = response.trades;
           }
-          if (trade.closeTrade != null) {
-            print('DEBUG: Trade $i - close_trade status: ${trade.closeTrade!.fillStatus}');
-          }
-        }
-        
-        if (isLoadMore) {
-          trades.addAll(response.trades);
-        } else {
-          trades = response.trades;
-        }
-        
-        hasMore = response.tradesMeta.hasMore;
-        isLoading = false;
-        isLoadingMore = false;
-      });
+          
+          hasMore = response.tradesMeta.hasMore;
+          isLoading = false;
+          isLoadingMore = false;
+          _isFilterLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        error = e.toString();
-        isLoading = false;
-        isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          error = e.toString();
+          isLoading = false;
+          isLoadingMore = false;
+          _isFilterLoading = false;
+        });
+      }
     }
   }
 
@@ -108,9 +114,39 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
     }
   }
 
+  void _onFilterChanged(String filterValue) {
+    // If same filter, don't reload
+    if (selectedFilter == filterValue) return;
+    
+    // Cancel any pending filter
+    _pendingFilter = null;
+    
+    if (mounted) {
+      setState(() {
+        selectedFilter = filterValue;
+        _isFilterLoading = true;
+        _lastFilterChange = DateTime.now();
+        // Clear cache when switching filters to ensure fresh data
+        _cachedGroupedTrades = null;
+        _cachedSortedDates = null;
+        _lastTradesHash = null;
+      });
+    }
+    
+    // Clear API cache to force fresh data fetch
+    UnifiedApiService.clearCache();
+    
+    // Debounce filter change to prevent rapid API calls
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (_lastFilterChange != null && 
+          DateTime.now().difference(_lastFilterChange!) >= const Duration(milliseconds: 300)) {
+        _loadBotDetails();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    print('DEBUG: build() called for bot ${widget.bot.id}');
     return Scaffold(
       backgroundColor: AppTheme.bg,
       body: SafeArea(
@@ -605,21 +641,33 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
-                    setState(() {
-                      selectedFilter = filterValue;
-                    });
-                    _loadBotDetails();
+                    _onFilterChanged(filterValue);
                   },
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text(
-                      filter,
-                      style: TextStyle(
-                        color: isActive ? AppTheme.blue : AppTheme.text2,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isFilterLoading && isActive)
+                          SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: AppTheme.blue,
+                            ),
+                          )
+                        else
+                          Text(
+                            filter,
+                            style: TextStyle(
+                              color: isActive ? AppTheme.blue : AppTheme.text2,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -632,7 +680,6 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
   }
 
   Widget _buildBody() {
-    print('DEBUG: _buildBody() called, isLoading: $isLoading, trades.length: ${trades.length}');
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -711,19 +758,36 @@ class _BotDetailsScreenState extends State<BotDetailsScreen> {
       );
     }
 
-    // Group trades by date
-    final Map<String, List<Trade>> groupedTrades = {};
-    for (final trade in trades) {
-      final tradeDate = trade.openTrade?.createdAt ?? DateTime.now();
-      final dateKey = DateFormat('d MMMM yyyy').format(tradeDate);
-      if (!groupedTrades.containsKey(dateKey)) {
-        groupedTrades[dateKey] = [];
+    // Optimize trades grouping with caching
+    final tradesHash = trades.length.toString() + trades.map((t) => t.id.toString()).join('-');
+    
+    Map<String, List<Trade>> groupedTrades;
+    List<String> sortedDates;
+    
+    if (_cachedGroupedTrades != null && _lastTradesHash == tradesHash) {
+      // Use cached data
+      groupedTrades = _cachedGroupedTrades!;
+      sortedDates = _cachedSortedDates!;
+    } else {
+      // Build and cache grouped trades
+      groupedTrades = {};
+      for (final trade in trades) {
+        final tradeDate = trade.openTrade?.createdAt ?? DateTime.now();
+        final dateKey = DateFormat('d MMMM yyyy').format(tradeDate);
+        if (!groupedTrades.containsKey(dateKey)) {
+          groupedTrades[dateKey] = [];
+        }
+        groupedTrades[dateKey]!.add(trade);
       }
-      groupedTrades[dateKey]!.add(trade);
-    }
 
-    final sortedDates = groupedTrades.keys.toList()
-      ..sort((a, b) => b.compareTo(a)); // Sort dates descending
+      sortedDates = groupedTrades.keys.toList()
+        ..sort((a, b) => b.compareTo(a)); // Sort dates descending
+        
+      // Cache the results
+      _cachedGroupedTrades = groupedTrades;
+      _cachedSortedDates = sortedDates;
+      _lastTradesHash = tradesHash;
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.all(14),

@@ -13,7 +13,6 @@ class PnL {
 
   factory PnL.fromJson(Map<String, dynamic> json) {
     try {
-      print('BOT DEBUG: Parsing PnL data: $json');
       return PnL(
         realized: _parseDouble(json['realized'], 'realized'),
         unrealized: _parseDouble(json['unrealized'], 'unrealized'),
@@ -51,7 +50,6 @@ class Price {
 
   factory Price.fromJson(Map<String, dynamic> json) {
     try {
-      print('BOT DEBUG: Parsing Price data: $json');
       return Price(
         market: PnL._parseDouble(json['market'], 'market'),
         avgEntry: json['avg_entry'] != null ? PnL._parseDouble(json['avg_entry'], 'avg_entry') : null,
@@ -212,7 +210,6 @@ class Bot {
 
   factory Bot.fromJson(Map<String, dynamic> json) {
     try {
-      print('BOT DEBUG: Parsing Bot JSON: $json');
       return Bot(
         id: json['id'] as int,
         coin: json['coin'] as String,

@@ -30,68 +30,56 @@ class BotCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: AppTheme.bg2,
-            borderRadius: BorderRadius.circular(AppTheme.radius),
+            borderRadius: const BorderRadius.all(Radius.circular(AppTheme.radius)),
             border: Border.all(color: AppTheme.border),
           ),
-          child: Stack(
-            children: [
-              // Main content
-              Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.bg2,
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  child: Stack(
-                    children: [
-                      // Left colored border indicator - integrated with card
-                      Positioned(
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 3,
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(AppTheme.radius),
-                              bottomLeft: Radius.circular(AppTheme.radius),
-                            ),
-                          ),
-                        ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(AppTheme.radius)),
+            child: Stack(
+              children: [
+                // Left colored border indicator - integrated with card
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(AppTheme.radius),
+                        bottomLeft: Radius.circular(AppTheme.radius),
                       ),
-                      // Content
-                      Padding(
-                        padding: const EdgeInsets.only(left: 10, top: 1, right: 1, bottom: 1),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppTheme.bg2,
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(AppTheme.radius - 1),
-                              bottomRight: Radius.circular(AppTheme.radius - 1),
-                            ),
-                          ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildHeader(),
-                      _buildPnLRow(),
-                      _buildPriceRow(),
-                      if (bot.status == 'running') _buildLiquidationBar(),
-                      _buildCapitalRow(),
-                      _buildCoverSection(),
-                      _buildFooter(),
-                    ],
-                  ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                // Content
+                Padding(
+                  padding: const EdgeInsets.only(left: 10, top: 1, right: 1, bottom: 1),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.bg2,
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(AppTheme.radius - 1),
+                        bottomRight: Radius.circular(AppTheme.radius - 1),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildHeader(),
+                        _buildPnLRow(),
+                        _buildPriceRow(),
+                        if (bot.status == 'running') _buildLiquidationBar(),
+                        _buildCapitalRow(),
+                        _buildCoverSection(),
+                        _buildFooter(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

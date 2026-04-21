@@ -56,6 +56,15 @@ class _BotsListScreenState extends State<BotsListScreen> {
   }
 
   @override
+  void didUpdateWidget(BotsListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh data when returning to this screen to ensure consistency
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBots(forceRefresh: true);
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -592,37 +601,49 @@ class _BotsListScreenState extends State<BotsListScreen> {
   }
 
   Widget _buildTabItem(IconData icon, String label, bool isActive) {
+    final bool isBotsTab = label == 'Bots';
+
     return Expanded(
-      child: InkWell(
-        onTap: () => _handleTabNavigation(label),
-        borderRadius: BorderRadius.circular(8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive ? AppTheme.blue : AppTheme.text3,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isActive ? AppTheme.blue : AppTheme.text3,
-              ),
-            ),
-            if (isActive)
-              Container(
-                width: 4,
-                height: 4,
-                margin: const EdgeInsets.only(top: 1),
-                decoration: BoxDecoration(
-                  color: AppTheme.blue,
-                  borderRadius: BorderRadius.circular(2),
+      child: Container(
+        decoration: BoxDecoration(
+          border: isBotsTab && isActive 
+            ? Border(left: BorderSide(color: AppTheme.green, width: 3))
+            : null,
+        ),
+        child: InkWell(
+          onTap: () => _handleTabNavigation(label),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isActive ? AppTheme.blue : AppTheme.text3,
                 ),
-              ),
-          ],
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isActive ? AppTheme.blue : AppTheme.text3,
+                  ),
+                ),
+                if (isActive)
+                  Container(
+                    width: 4,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 1),
+                    decoration: BoxDecoration(
+                      color: AppTheme.blue,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

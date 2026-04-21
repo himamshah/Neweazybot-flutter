@@ -38,29 +38,20 @@ class ApiService {
 
       final uri = Uri.parse('$baseUrl/api/bots').replace(queryParameters: queryParams);
       
-      print('API DEBUG: Request URL: $uri');
-      print('API DEBUG: Headers: $headers');
-      
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      
-      print('API DEBUG: Response status: ${response.statusCode}');
-      print('API DEBUG: Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        print('API DEBUG: Parsed JSON data: $data');
         return BotsListResponse.fromJson(data);
       } else if (response.statusCode == 401 || response.statusCode == 500) {
         // Handle authentication and server errors
         final body = json.decode(response.body);
         if (body['message'] == 'Unauthenticated' || response.statusCode == 401) {
-          print('API ERROR: Authentication failed, clearing token');
           await AuthService.logout();
           throw Exception('Session expired. Please login again.');
         }
         // Handle specific server error with 'all' parameter
         if (body['message'] == 'Unsupported operand types: float - array') {
-          print('API ERROR: Server error with status=all, retrying with status=running');
           // Retry with 'running' status instead
           final retryParams = <String, dynamic>{};
           queryParams.forEach((key, value) {
@@ -73,15 +64,11 @@ class ApiService {
             return BotsListResponse.fromJson(retryData);
           }
         }
-        print('API ERROR: Status code ${response.statusCode}');
         throw _handleError(response);
       } else {
-        print('API ERROR: Status code ${response.statusCode}');
         throw _handleError(response);
       }
     } catch (e, stackTrace) {
-      print('API ERROR: Exception in getBots: $e');
-      print('API ERROR: Stack trace: $stackTrace');
       throw _handleException(e);
     }
   }
@@ -140,17 +127,10 @@ class ApiService {
 
       final uri = Uri.parse('$baseUrl/api/bots/$botId').replace(queryParameters: queryParams);
       
-      print('API DEBUG: Bot Detail Request URL: $uri');
-      print('API DEBUG: Headers: $headers');
-      
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      
-      print('API DEBUG: Bot Detail Response status: ${response.statusCode}');
-      print('API DEBUG: Bot Detail Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        print('API DEBUG: Parsed Bot Detail JSON data: $data');
         return BotDetailResponse.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('Bot with ID $botId not found or does not belong to this account.');
@@ -169,17 +149,10 @@ class ApiService {
       final headers = await _headers;
       final uri = Uri.parse('https://futures.eazybot.com/api/trades?page=$page');
       
-      print('API DEBUG: Trades Request URL: $uri');
-      print('API DEBUG: Headers: $headers');
-      
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      
-      print('API DEBUG: Trades Response status: ${response.statusCode}');
-      print('API DEBUG: Trades Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        print('API DEBUG: Parsed Trades JSON data: $data');
         return TradesResponse.fromJson(data);
       } else {
         throw _handleError(response);
@@ -201,15 +174,10 @@ class ApiService {
       final headers = await _headers;
       final uri = Uri.parse('$baseUrl/api/profile');
       
-      print('API DEBUG: Profile Request URL: $uri');
-      
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      
-      print('API DEBUG: Profile Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        print('API DEBUG: Profile Parsed JSON data: $data');
         return ProfileResponse.fromJson(data);
       } else {
         throw _handleError(response);
@@ -227,8 +195,6 @@ class ApiService {
       final headers = await _headers;
       final uri = Uri.parse('$baseUrl/api/change-password');
       
-      print('API DEBUG: Change Password Request URL: $uri');
-      
       final response = await http.post(
         uri,
         headers: headers,
@@ -239,11 +205,9 @@ class ApiService {
         }),
       ).timeout(timeout);
       
-      print('API DEBUG: Change Password Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        print('API DEBUG: Change Password Parsed JSON data: $data');
         return data;
       } else {
         throw _handleError(response);
@@ -258,17 +222,10 @@ class ApiService {
       final headers = await _headers;
       final uri = Uri.parse('$baseUrl/api/api-keys');
       
-      print('API DEBUG: Get API Keys Request URL: $uri');
-      print('API DEBUG: Headers: $headers');
-      
       final response = await http.get(uri, headers: headers).timeout(timeout);
-      
-      print('API DEBUG: Get API Keys Response status: ${response.statusCode}');
-      print('API DEBUG: Get API Keys Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        print('API DEBUG: Parsed API Keys JSON data: $data');
         return ApiKeysListResponse.fromJson(data);
       } else {
         throw _handleError(response);
@@ -283,21 +240,15 @@ class ApiService {
       final headers = await _headers;
       final uri = Uri.parse('$baseUrl/api/api-keys');
       
-      print('API DEBUG: Create API Key Request URL: $uri');
-      print('API DEBUG: Request body: ${request.toJson()}');
-      
       final response = await http.post(
         uri,
         headers: headers,
         body: json.encode(request.toJson()),
       ).timeout(timeout);
       
-      print('API DEBUG: Create API Key Response status: ${response.statusCode}');
-      print('API DEBUG: Create API Key Response body: ${response.body}');
       
       if (response.statusCode == 201) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        print('API DEBUG: Parsed Create API Key JSON data: $data');
         return CreateApiKeyResponse.fromJson(data);
       } else if (response.statusCode == 422) {
         final data = json.decode(response.body) as Map<String, dynamic>;
@@ -315,14 +266,9 @@ class ApiService {
       final headers = await _headers;
       final uri = Uri.parse('$baseUrl/api/api-keys/$apiKeyId');
       
-      print('API DEBUG: Delete API Key Request URL: $uri');
-      
       final response = await http.delete(uri, headers: headers).timeout(timeout);
       
-      print('API DEBUG: Delete API Key Response status: ${response.statusCode}');
-      
       if (response.statusCode == 200 || response.statusCode == 204) {
-        print('API DEBUG: API Key deleted successfully');
         return;
       } else {
         throw _handleError(response);

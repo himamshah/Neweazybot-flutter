@@ -662,7 +662,6 @@ class MockApiService {
     
     // Simulate server validation for password confirmation match
     // In real API, this would be validated on server side
-    print('MOCK DEBUG: Change password params - current_password: $currentPassword, password: $newPassword, password_confirmation: $newPassword');
     
     return {
       'success': true,

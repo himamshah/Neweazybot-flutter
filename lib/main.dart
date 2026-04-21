@@ -14,7 +14,7 @@ class EasyBotApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'EasyBot',
+      title: 'TradeBot',
       theme: AppTheme.darkTheme,
       home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
